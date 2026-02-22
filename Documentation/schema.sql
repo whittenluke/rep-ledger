@@ -50,7 +50,7 @@ create table scheduled_workouts (
 create table workout_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
-  scheduled_workout_id uuid references scheduled_workouts,
+  scheduled_workout_id uuid references scheduled_workouts on delete set null,
   template_id uuid references workout_templates,
   started_at timestamptz default now(),
   completed_at timestamptz,
@@ -126,3 +126,14 @@ create policy "session_sets_owner" on session_sets
 -- alter table exercises add column if not exists type text not null default 'reps' check (type in ('reps', 'time'));
 -- alter table template_exercises add column if not exists target_duration_seconds integer;
 -- alter table session_sets add column if not exists actual_duration_seconds integer;
+
+-- =============================================================================
+-- Migration: allow deleting scheduled_workouts when sessions exist (run on existing DBs)
+-- =============================================================================
+-- When a scheduled_workout is deleted, set workout_sessions.scheduled_workout_id to NULL
+-- so the session (and history) is preserved. Run in Supabase SQL editor:
+--
+-- alter table workout_sessions
+--   drop constraint if exists workout_sessions_scheduled_workout_id_fkey,
+--   add constraint workout_sessions_scheduled_workout_id_fkey
+--   foreign key (scheduled_workout_id) references scheduled_workouts(id) on delete set null;

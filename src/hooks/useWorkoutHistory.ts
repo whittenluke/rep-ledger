@@ -8,6 +8,7 @@ export interface CompletedSession {
   template_name: string
   durationSeconds: number
   setsCount: number
+  scheduled_workout_id: string | null
 }
 
 export function useWorkoutHistory() {
@@ -20,7 +21,7 @@ export function useWorkoutHistory() {
     setError(null)
     const { data: sessionsData, error: sessionsErr } = await supabase
       .from('workout_sessions')
-      .select('id, started_at, completed_at, template_id, workout_templates(name)')
+      .select('id, started_at, completed_at, template_id, scheduled_workout_id, workout_templates(name)')
       .not('completed_at', 'is', null)
       .order('completed_at', { ascending: false })
     if (sessionsErr) {
@@ -34,6 +35,7 @@ export function useWorkoutHistory() {
       started_at: string
       completed_at: string
       template_id: string
+      scheduled_workout_id: string | null
       workout_templates: { name: string } | null
     }>
     if (list.length === 0) {
@@ -61,6 +63,7 @@ export function useWorkoutHistory() {
           template_name: (s.workout_templates?.name as string) ?? 'Workout',
           durationSeconds: Math.round((end - start) / 1000),
           setsCount: countBySession[s.id] ?? 0,
+          scheduled_workout_id: s.scheduled_workout_id ?? null,
         }
       })
     )

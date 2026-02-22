@@ -178,6 +178,13 @@ export function Calendar() {
                       >
                         Remove
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setAssignOpen(true)}
+                        className="px-4 py-3 rounded-lg border border-border min-h-[44px]"
+                      >
+                        Add workout
+                      </button>
                     </div>
                   </div>
                 ) : (

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useActiveWorkoutStore } from '@/store/activeWorkout'
 import { useCalendar } from '@/hooks/useCalendar'
@@ -9,7 +9,7 @@ import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
-import { Calendar, ChevronRight, Dumbbell } from 'lucide-react'
+import { Calendar, CheckCircle2, ChevronRight, Dumbbell, Plus, Trash2 } from 'lucide-react'
 
 function toLocalDateStr(d: Date) {
   const y = d.getFullYear()
@@ -34,33 +34,73 @@ function formatSessionDate(iso: string) {
 }
 
 export function Dashboard() {
-  const navigate = useNavigate()
   const { sessionId, scheduledWorkoutId, reset } = useActiveWorkoutStore()
   const hasInProgressSession = sessionId && scheduledWorkoutId
 
   const now = new Date()
   const todayStr = toLocalDateStr(now)
-  const { scheduled, loading: calendarLoading, getScheduledForDate, createScheduled } = useCalendar(
+  const { scheduled, loading: calendarLoading, createScheduled, removeScheduled, refetch: refetchCalendar } = useCalendar(
     now.getFullYear(),
     now.getMonth() + 1
   )
-  const todaysScheduled = scheduled.find((s) => s.scheduled_date === todayStr) ?? null
-
   const { sessions: recentSessions, loading: historyLoading } = useWorkoutHistory()
-  const lastThree = recentSessions.slice(0, 3)
+
+  const { completedTodayList, notCompletedTodayList, lastThree } = useMemo(() => {
+    const list = scheduled.filter((s) => s.scheduled_date === todayStr)
+    const completedIds = new Set(
+      recentSessions
+        .filter((s) => s.scheduled_workout_id && list.some((t) => t.id === s.scheduled_workout_id))
+        .map((s) => s.scheduled_workout_id as string)
+    )
+    const notCompleted = list.filter((s) => !completedIds.has(s.id))
+    const completedList = list
+      .filter((s) => completedIds.has(s.id))
+      .map((s) => ({
+        scheduled: s,
+        session: recentSessions.find((r) => r.scheduled_workout_id === s.id)!,
+      }))
+    return {
+      completedTodayList: completedList,
+      notCompletedTodayList: notCompleted,
+      lastThree: recentSessions.slice(0, 3),
+    }
+  }, [scheduled, todayStr, recentSessions])
 
   const { currentStreak, workoutsThisWeek, loading: analyticsLoading } = useProgressAnalytics()
 
-  const [pickOneOpen, setPickOneOpen] = useState(false)
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState(todayStr)
+  const [removeConfirm, setRemoveConfirm] = useState<{ id: string; name: string } | null>(null)
   const { templates } = useWorkoutTemplates()
+  const pickOneOpen = scheduleModalOpen
 
   const loading = calendarLoading || historyLoading || analyticsLoading
 
-  async function handleAssignToday(templateId: string) {
+  function openScheduleModal() {
+    setScheduleDate(todayStr)
+    setScheduleModalOpen(true)
+  }
+
+  async function handleScheduleWorkout(templateId: string) {
     try {
-      const created = await createScheduled(templateId, todayStr)
-      setPickOneOpen(false)
-      navigate(`/session/${created.id}`)
+      await createScheduled(templateId, scheduleDate)
+      setScheduleModalOpen(false)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  function openRemoveConfirm(id: string, name: string) {
+    setRemoveConfirm({ id, name })
+  }
+
+  async function handleRemoveScheduledConfirm() {
+    if (!removeConfirm) return
+    const { id } = removeConfirm
+    setRemoveConfirm(null)
+    try {
+      await removeScheduled(id)
+      await refetchCalendar()
     } catch (err) {
       console.error(err)
     }
@@ -97,59 +137,123 @@ export function Dashboard() {
         <>
           {loading ? (
             <LoadingState message="Loading…" />
-          ) : todaysScheduled ? (
-            <div className="p-4 rounded-lg border border-border bg-card">
-              <p className="text-sm text-muted-foreground mb-1">Scheduled for today</p>
-              <p className="font-display text-xl font-semibold text-foreground">
-                {todaysScheduled.workout_templates?.name ?? 'Workout'}
-              </p>
-              <Link
-                to={`/session/${todaysScheduled.id}`}
-                className={cn(
-                  'mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
-                  'bg-accent text-primary-foreground font-semibold min-h-[48px]',
-                  'hover:opacity-90 transition-opacity'
-                )}
-              >
-                <Dumbbell className="w-5 h-5" aria-hidden />
-                Start workout
-              </Link>
-            </div>
           ) : (
-            <div className="p-4 rounded-lg border border-border bg-card">
-              <p className="text-muted-foreground">No workout scheduled for today.</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Schedule one from the calendar or start a quick session.
-              </p>
-              <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPickOneOpen(true)}
-                  className="px-4 py-3 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
-                >
-                  Pick a workout
-                </button>
-                <Link
-                  to="/calendar"
-                  className="px-4 py-3 rounded-lg border border-border flex items-center justify-center gap-2 min-h-[44px] text-foreground"
-                >
-                  <Calendar className="w-5 h-5" aria-hidden />
-                  Calendar
-                </Link>
-              </div>
-            </div>
+            <>
+              {completedTodayList.length > 0 && (
+                <div className="space-y-3">
+                  {completedTodayList.map(({ scheduled: s, session }) => (
+                    <div key={s.id} className="p-4 rounded-lg border-2 border-accent/70 bg-accent/5">
+                      <p className="flex items-center gap-1.5 text-sm text-accent">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden />
+                        Workout completed
+                      </p>
+                      <p className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground uppercase">
+                        {s.workout_templates?.name ?? 'Workout'}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formatSessionDate(session.completed_at)} · {session.setsCount} sets · {formatDuration(session.durationSeconds)}
+                      </p>
+                      <Link
+                        to={`/history/${session.id}`}
+                        className={cn(
+                          'mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
+                          'border border-border bg-card font-medium min-h-[44px]',
+                          'hover:border-accent/50 transition-colors'
+                        )}
+                      >
+                        View session
+                        <ChevronRight className="w-5 h-5" aria-hidden />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {notCompletedTodayList.length > 0 && (
+                <div className="space-y-3">
+                  {notCompletedTodayList.map((s) => (
+                    <div key={s.id} className="p-4 rounded-lg border border-border bg-card">
+                      <p className="text-sm text-muted-foreground mb-1">Scheduled for today</p>
+                      <p className="font-display text-xl font-semibold text-foreground">
+                        {s.workout_templates?.name ?? 'Workout'}
+                      </p>
+                      <div className="mt-4 flex flex-col gap-2">
+                        <Link
+                          to={`/session/${s.id}`}
+                          className={cn(
+                            'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
+                            'bg-accent text-primary-foreground font-semibold min-h-[48px]',
+                            'hover:opacity-90 transition-opacity'
+                          )}
+                        >
+                          <Dumbbell className="w-5 h-5" aria-hidden />
+                          Start workout
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => openRemoveConfirm(s.id, s.workout_templates?.name ?? 'Workout')}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-red-500/50 transition-colors min-h-[44px]"
+                        >
+                          <Trash2 className="w-4 h-4" aria-hidden />
+                          Remove from today
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {completedTodayList.length === 0 && notCompletedTodayList.length === 0 && (
+                <div className="p-4 rounded-lg border border-border bg-card">
+                  <p className="text-muted-foreground">No workouts scheduled for today.</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Schedule a workout to get started.
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={openScheduleModal}
+                className="w-full py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors min-h-[44px]"
+              >
+                {completedTodayList.length > 0 || notCompletedTodayList.length > 0
+                  ? 'Schedule another workout'
+                  : 'Schedule a workout'}
+              </button>
+
+              <Link
+                to="/calendar"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground min-h-[44px]"
+              >
+                <Calendar className="w-5 h-5" aria-hidden />
+                Calendar
+              </Link>
+            </>
           )}
 
-          {pickOneOpen && (
+          {scheduleModalOpen && (
             <div
               className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-black/50"
               role="dialog"
               aria-modal="true"
-              aria-label="Pick a workout for today"
+              aria-label="Schedule a workout"
             >
               <div className="w-full max-w-md bg-card border-t sm:border border-border rounded-t-2xl sm:rounded-2xl p-4 pb-8 safe-area-pb">
-                <h2 className="font-display text-lg font-semibold mb-2">Schedule for today</h2>
-                <p className="text-sm text-muted-foreground mb-4">Choose a template to start</p>
+                <h2 className="font-display text-lg font-semibold mb-2">Schedule a workout</h2>
+                <div className="mb-4">
+                  <label htmlFor="schedule-date" className="block text-sm text-muted-foreground mb-1">
+                    Date
+                  </label>
+                  <input
+                    id="schedule-date"
+                    type="date"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">Choose a template</p>
                 {templates.length === 0 ? (
                   <EmptyState
                     message="No templates yet"
@@ -161,7 +265,7 @@ export function Dashboard() {
                       <li key={t.id}>
                         <button
                           type="button"
-                          onClick={() => handleAssignToday(t.id)}
+                          onClick={() => handleScheduleWorkout(t.id)}
                           className="w-full text-left px-3 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[44px] flex items-center justify-between gap-2"
                         >
                           <span className="font-medium truncate">{t.name}</span>
@@ -171,13 +275,53 @@ export function Dashboard() {
                     ))}
                   </ul>
                 )}
+                <Link
+                  to="/builder"
+                  onClick={() => setScheduleModalOpen(false)}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors min-h-[44px]"
+                >
+                  <Plus className="w-4 h-4" aria-hidden />
+                  Create new template
+                </Link>
                 <button
                   type="button"
-                  onClick={() => setPickOneOpen(false)}
+                  onClick={() => setScheduleModalOpen(false)}
                   className="mt-4 w-full py-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          )}
+
+          {removeConfirm && (
+            <div
+              className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-black/50"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Remove workout from today?"
+            >
+              <div className="w-full max-w-md bg-card border-t sm:border border-border rounded-t-2xl sm:rounded-2xl p-4 pb-8 safe-area-pb">
+                <h2 className="font-display text-lg font-semibold mb-2">Remove from today?</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Remove &quot;{removeConfirm.name}&quot; from today? You can schedule it again anytime.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRemoveConfirm(null)}
+                    className="flex-1 py-3 rounded-lg border border-border font-medium min-h-[44px]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveScheduledConfirm}
+                    className="flex-1 py-3 rounded-lg border border-red-500/50 text-red-500 font-medium min-h-[44px] hover:bg-red-500/10 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             </div>
           )}
