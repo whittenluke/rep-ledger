@@ -10,6 +10,11 @@ import {
   EQUIPMENT_OPTIONS,
 } from '@/hooks/useExercises'
 import { cn } from '@/lib/utils'
+import {
+  MUSCLE_GROUP_LABELS,
+  MUSCLE_GROUP_TO_PRIMARY_MUSCLES,
+  type MuscleGroupLabel,
+} from '@/lib/muscleGroupMapping'
 import { Plus, Pencil, Trash2, Library, FilePlus, ChevronRight, ChevronDown } from 'lucide-react'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -55,6 +60,7 @@ export function Exercises() {
   const [libraryQuery, setLibraryQuery] = useState('')
   const [cloningId, setCloningId] = useState<string | null>(null)
   const [equipmentFilter, setEquipmentFilter] = useState<Set<string>>(() => new Set())
+  const [muscleGroupFilter, setMuscleGroupFilter] = useState<Set<MuscleGroupLabel>>(() => new Set())
   const [expandedGroups, setExpandedGroups] = useState<Set<MovementPattern>>(() => new Set())
 
   function openAdd() {
@@ -75,6 +81,15 @@ export function Exercises() {
       const next = new Set(prev)
       if (next.has(eq)) next.delete(eq)
       else next.add(eq)
+      return next
+    })
+  }
+
+  function toggleMuscleGroup(label: MuscleGroupLabel) {
+    setMuscleGroupFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
       return next
     })
   }
@@ -177,10 +192,24 @@ export function Exercises() {
       ? filteredBySearch
       : filteredBySearch.filter((ex) => equipmentFilter.has(ex.equipment))
 
+  const filteredByMuscleGroup =
+    muscleGroupFilter.size === 0
+      ? filteredByEquipment
+      : filteredByEquipment.filter((ex) => {
+          for (const label of muscleGroupFilter) {
+            const muscles = new Set(MUSCLE_GROUP_TO_PRIMARY_MUSCLES[label])
+            const involves =
+              muscles.has(ex.primary_muscle) ||
+              (ex.secondary_muscles ?? []).some((m) => muscles.has(m))
+            if (!involves) return false
+          }
+          return true
+        })
+
   const groupedByPattern: { pattern: MovementPattern; exercises: Exercise[] }[] = MOVEMENT_PATTERNS.map(
     (pattern) => ({
       pattern,
-      exercises: filteredByEquipment.filter((ex) => ex.movement_pattern === pattern),
+      exercises: filteredByMuscleGroup.filter((ex) => ex.movement_pattern === pattern),
     })
   ).filter((g) => g.exercises.length > 0)
 
@@ -283,6 +312,23 @@ export function Exercises() {
                   )}
                 >
                   {eq}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {MUSCLE_GROUP_LABELS.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => toggleMuscleGroup(label)}
+                  className={cn(
+                    'shrink-0 px-3 py-2 rounded-lg border text-sm font-medium min-h-[44px] transition-colors',
+                    muscleGroupFilter.has(label)
+                      ? 'bg-accent text-primary-foreground border-accent'
+                      : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-accent/50'
+                  )}
+                >
+                  {label}
                 </button>
               ))}
             </div>
