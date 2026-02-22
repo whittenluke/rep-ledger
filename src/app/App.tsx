@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { InstallPrompt } from '@/components/layout/InstallPrompt'
+import { StartWorkoutProvider } from '@/contexts/StartWorkoutContext'
 import { Login } from '@/app/routes/Login'
 import { AuthCallback } from '@/app/routes/AuthCallback'
 import { Dashboard } from '@/app/routes/Dashboard'
@@ -17,13 +18,15 @@ import { SessionDetail } from '@/app/routes/SessionDetail'
 
 function AuthenticatedLayout() {
   return (
-    <div className="min-h-screen bg-background">
-      <main>
-        <Outlet />
-      </main>
-      <InstallPrompt />
-      <BottomNav />
-    </div>
+    <StartWorkoutProvider>
+      <div className="min-h-screen bg-background">
+        <main>
+          <Outlet />
+        </main>
+        <InstallPrompt />
+        <BottomNav />
+      </div>
+    </StartWorkoutProvider>
   )
 }
 

@@ -6,6 +6,7 @@ import { useCalendar } from '@/hooks/useCalendar'
 import { useWorkoutHistory } from '@/hooks/useWorkoutHistory'
 import { useProgressAnalytics } from '@/hooks/useProgressAnalytics'
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates'
+import { useStartWorkout } from '@/contexts/StartWorkoutContext'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
@@ -72,7 +73,7 @@ export function Dashboard() {
   const [scheduleDate, setScheduleDate] = useState(todayStr)
   const [removeConfirm, setRemoveConfirm] = useState<{ id: string; name: string } | null>(null)
   const { templates } = useWorkoutTemplates()
-  const pickOneOpen = scheduleModalOpen
+  const { openStartWorkout } = useStartWorkout()
 
   const loading = calendarLoading || historyLoading || analyticsLoading
 
@@ -204,10 +205,22 @@ export function Dashboard() {
               )}
 
               {completedTodayList.length === 0 && notCompletedTodayList.length === 0 && (
-                <div className="p-4 rounded-lg border border-border bg-card">
+                <div className="p-4 rounded-lg border border-border bg-card space-y-4">
                   <p className="text-muted-foreground">No workouts scheduled for today.</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Schedule a workout to get started.
+                  <button
+                    type="button"
+                    onClick={openStartWorkout}
+                    className={cn(
+                      'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
+                      'bg-accent text-primary-foreground font-semibold min-h-[48px]',
+                      'hover:opacity-90 transition-opacity'
+                    )}
+                  >
+                    <Dumbbell className="w-5 h-5" aria-hidden />
+                    Start workout
+                  </button>
+                  <p className="text-xs text-muted-foreground">
+                    Pick a template to start now, or schedule one for another day below.
                   </p>
                 </div>
               )}
@@ -219,7 +232,7 @@ export function Dashboard() {
               >
                 {completedTodayList.length > 0 || notCompletedTodayList.length > 0
                   ? 'Schedule another workout'
-                  : 'Schedule a workout'}
+                  : 'Schedule for another day'}
               </button>
 
               <Link
