@@ -20,6 +20,7 @@ function monthBounds(year: number, month: number) {
 export function useCalendar(year: number, month: number) {
   const [scheduled, setScheduled] = useState<ScheduledWorkout[]>([])
   const [completedDates, setCompletedDates] = useState<Set<string>>(new Set())
+  const [completedSessionIdByScheduledId, setCompletedSessionIdByScheduledId] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -39,7 +40,7 @@ export function useCalendar(year: number, month: number) {
         .order('scheduled_date'),
       supabase
         .from('workout_sessions')
-        .select('completed_at')
+        .select('id, completed_at, scheduled_workout_id')
         .not('completed_at', 'is', null)
         .gte('completed_at', startTs)
         .lte('completed_at', endTs),
@@ -49,18 +50,23 @@ export function useCalendar(year: number, month: number) {
       setError(schedRes.error)
       setScheduled([])
       setCompletedDates(new Set())
+      setCompletedSessionIdByScheduledId({})
     } else {
       setScheduled((schedRes.data ?? []) as ScheduledWorkout[])
     }
 
     if (sessionsRes.error) {
       setCompletedDates(new Set())
+      setCompletedSessionIdByScheduledId({})
     } else {
       const dates = new Set<string>()
-      ;(sessionsRes.data ?? []).forEach((row: { completed_at: string }) => {
+      const byScheduled: Record<string, string> = {}
+      ;(sessionsRes.data ?? []).forEach((row: { id: string; completed_at: string; scheduled_workout_id: string | null }) => {
         if (row.completed_at) dates.add(row.completed_at.slice(0, 10))
+        if (row.scheduled_workout_id) byScheduled[row.scheduled_workout_id] = row.id
       })
       setCompletedDates(dates)
+      setCompletedSessionIdByScheduledId(byScheduled)
     }
 
     setLoading(false)
@@ -97,9 +103,16 @@ export function useCalendar(year: number, month: number) {
     [scheduled]
   )
 
+  const getCompletedSessionId = useCallback(
+    (scheduledWorkoutId: string) => completedSessionIdByScheduledId[scheduledWorkoutId] ?? null,
+    [completedSessionIdByScheduledId]
+  )
+
   return {
     scheduled,
     completedDates,
+    completedSessionIdByScheduledId,
+    getCompletedSessionId,
     loading,
     error,
     refetch: fetch,

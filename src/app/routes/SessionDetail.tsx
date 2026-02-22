@@ -43,8 +43,8 @@ export function SessionDetail() {
     return (
       <div className="p-4 pb-20">
         <p className="text-red-500">Session not found.</p>
-        <button type="button" onClick={() => navigate('/history')} className="mt-2 text-accent">
-          Back to History
+        <button type="button" onClick={() => navigate(-1)} className="mt-2 text-accent">
+          Back
         </button>
       </div>
     )
@@ -62,10 +62,10 @@ export function SessionDetail() {
     <div className="p-4 pb-20">
       <button
         type="button"
-        onClick={() => navigate('/history')}
+        onClick={() => navigate(-1)}
         className="text-muted-foreground hover:text-foreground mb-2"
       >
-        ← Back to History
+        ← Back
       </button>
 
       <PageHeader title={detail.template_name} />

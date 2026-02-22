@@ -5,7 +5,8 @@ import { useCalendar } from '@/hooks/useCalendar'
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates'
 import { WeekView } from '@/components/calendar/WeekView'
 import { cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, FileText } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 
 const MONTH_NAMES = [
@@ -29,6 +30,7 @@ export function Calendar() {
     createScheduled,
     removeScheduled,
     getScheduledForDate,
+    getCompletedSessionId,
   } = useCalendar(year, month)
 
   const { templates } = useWorkoutTemplates()
@@ -156,7 +158,19 @@ export function Calendar() {
                       {selectedScheduled.workout_templates?.name ?? 'Workout'}
                     </p>
                     {isCompleted && (
-                      <p className="text-sm text-muted-foreground">Completed</p>
+                      <>
+                        <p className="text-sm text-muted-foreground">Completed</p>
+                        {getCompletedSessionId(selectedScheduled.id) && (
+                          <Link
+                            to={`/history/${getCompletedSessionId(selectedScheduled.id)}`}
+                            onClick={() => setSelectedDate(null)}
+                            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
+                          >
+                            <FileText className="w-5 h-5" aria-hidden />
+                            View session summary
+                          </Link>
+                        )}
+                      </>
                     )}
                     <div className="flex gap-2 flex-wrap">
                       {!isCompleted && (
