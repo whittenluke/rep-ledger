@@ -98,7 +98,7 @@ export function Settings() {
           </div>
           <div>
             <label htmlFor="rest-seconds" className="block text-sm text-muted-foreground mb-1">
-              Custom (0–600 seconds)
+              Custom (0-600 seconds)
             </label>
             <input
               id="rest-seconds"

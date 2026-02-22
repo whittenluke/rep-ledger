@@ -211,7 +211,7 @@ vite-plugin-pwa config should include:
 12. ~~Complete Dashboard (today's scheduled workout + Start CTA, recent activity, quick stats, pick one or rest day)~~ ✅
 13. ~~Start workout without Calendar: center FAB and/or Dashboard "Start" (use today's scheduled or pick template)~~ ✅
 14. ~~Build out Settings (weight unit, default rest timer, account, data export JSON, persist prefs)~~ ✅
-15. Active workout UX review (touch targets, rest timer, set-complete micro-interaction)
+15. ~~Active workout UX review (touch targets, rest timer, set-complete micro-interaction)~~ ✅
 16. Calendar: tap completed day to view session summary
 17. Exercise list categorization (group/filter by muscle group for easier browsing)
 18. Builder: delete template from list (e.g. long-press or row action) for discoverability

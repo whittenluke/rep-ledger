@@ -25,17 +25,20 @@ export function RestTimer({ seconds, onComplete, onSkip, className }: RestTimerP
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-3 p-3 rounded-lg border border-accent/50 bg-accent/10',
+        'flex items-center gap-2 py-4 px-4 rounded-xl border-2 border-accent/60 bg-accent/15 min-h-[72px]',
         className
       )}
     >
-      <span className="font-display text-lg font-semibold text-accent">
+      <span
+        key={remaining}
+        className="flex-1 text-center font-display text-3xl font-bold tabular-nums text-accent animate-rest-pulse"
+      >
         Rest: {remaining}s
       </span>
       <button
         type="button"
         onClick={onSkip}
-        className="px-3 py-2 rounded-lg bg-accent/20 text-accent font-medium min-h-[44px]"
+        className="w-[72px] shrink-0 px-3 py-2.5 rounded-lg bg-accent/25 text-accent font-semibold min-h-[44px] hover:bg-accent/35 transition-colors"
       >
         Skip
       </button>

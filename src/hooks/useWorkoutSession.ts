@@ -267,6 +267,40 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
     []
   )
 
+  const addSet = useCallback(async () => {
+    if (!sessionId || !currentExercise) return
+    const nextSetNumber = sets.length + 1
+    const { data: inserted, error: insErr } = await supabase
+      .from('session_sets')
+      .insert({
+        session_id: sessionId,
+        exercise_id: currentExercise.exercise_id,
+        set_number: nextSetNumber,
+        target_reps: currentExercise.type === 'time' ? null : currentExercise.target_reps,
+        completed: false,
+      })
+      .select('id, set_number, target_reps, actual_reps, actual_duration_seconds, weight, completed')
+      .single()
+    if (insErr) throw insErr
+    const newRow: SessionSetRow = {
+      id: inserted.id,
+      set_number: inserted.set_number,
+      target_reps: inserted.target_reps,
+      target_duration_seconds: currentExercise.type === 'time' ? currentExercise.target_duration_seconds : null,
+      actual_reps: null,
+      actual_duration_seconds: null,
+      weight: null,
+      completed: false,
+    }
+    setSets((prev) => [...prev, newRow])
+  }, [sessionId, currentExercise, sets.length])
+
+  const removeSet = useCallback(async (setId: string) => {
+    const { error: e } = await supabase.from('session_sets').delete().eq('id', setId)
+    if (e) throw e
+    setSets((prev) => prev.filter((s) => s.id !== setId))
+  }, [])
+
   const nextExercise = useCallback(() => {
     if (currentExerciseIndex < exercises.length - 1) {
       storeNextExercise()
@@ -310,6 +344,8 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
     sessionId,
     updateSet,
     markSetComplete,
+    addSet,
+    removeSet,
     nextExercise,
     finishSession,
     elapsedSeconds,

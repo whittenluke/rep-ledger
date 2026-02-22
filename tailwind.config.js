@@ -7,6 +7,15 @@ export default {
   ],
   theme: {
     extend: {
+      keyframes: {
+        'rest-pulse': {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.9', transform: 'scale(1.04)' },
+        },
+      },
+      animation: {
+        'rest-pulse': 'rest-pulse 1s ease-in-out',
+      },
       colors: {
         accent: '#c8ff00',
         background: 'hsl(var(--background))',

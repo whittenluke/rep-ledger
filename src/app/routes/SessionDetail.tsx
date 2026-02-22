@@ -96,8 +96,8 @@ export function SessionDetail() {
                       <span className="text-muted-foreground">Set {set.set_number}</span>
                       <span className="text-foreground">
                         {isTime
-                          ? `${set.actual_duration_seconds ?? '—'}s`
-                          : `${set.actual_reps ?? '—'} reps${set.weight != null ? ` × ${set.weight}` : ''}`}
+                          ? `${set.actual_duration_seconds ?? '-'}s`
+                          : `${set.actual_reps ?? '-'} reps${set.weight != null ? ` x ${set.weight}` : ''}`}
                       </span>
                     </li>
                   ))}

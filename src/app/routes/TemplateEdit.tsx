@@ -240,7 +240,7 @@ export function TemplateEdit() {
                             const v = e.target.value
                             update(r.id, { target_weight: v === '' ? null : parseFloat(v) || 0 })
                           }}
-                          placeholder="—"
+                          placeholder="-"
                           className={cn(inputClass, 'py-1.5')}
                           inputMode="decimal"
                         />

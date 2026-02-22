@@ -83,7 +83,7 @@ export function Progress() {
           Volume over time
         </h2>
         <p className="text-sm text-muted-foreground mb-2">
-          Total volume ({weightUnit}) — sum of reps × weight per set. Each point is one week (Monday–Sunday).
+          Total volume ({weightUnit}), sum of reps x weight per set. Each point is one week (Monday-Sunday).
         </p>
         {weeklyVolume.length === 0 ? (
           <p className="text-sm text-muted-foreground">No volume data yet.</p>
@@ -98,7 +98,7 @@ export function Progress() {
             By workout
           </h2>
           <p className="text-sm text-muted-foreground mb-2">
-            Volume by template ({weightUnit}). Each point is one week (Monday–Sunday).
+            Volume by template ({weightUnit}). Each point is one week (Monday-Sunday).
           </p>
           <select
             value={selectedTemplate ?? ''}
@@ -148,7 +148,7 @@ export function Progress() {
             )}
             {exerciseProgress.volumeByDate.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Volume over time ({weightUnit}) — per workout day</p>
+                <p className="text-xs text-muted-foreground mb-1">Volume over time ({weightUnit}), per workout day</p>
                 <VolumeChart
                   data={exerciseProgress.volumeByDate.map((d) => ({ week: d.date, volume: d.volume }))}
                   unit={weightUnit}
