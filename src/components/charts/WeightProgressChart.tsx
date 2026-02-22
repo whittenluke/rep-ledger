@@ -14,9 +14,11 @@ interface WeightProgressChartProps {
   className?: string
 }
 
+/** Parse YYYY-MM-DD as local date so labels don't shift in western timezones. */
 function formatDateLabel(date: string) {
-  const d = new Date(date)
-  return `${d.getMonth() + 1}/${d.getDate()}`
+  const [y, m, d] = date.split('-').map(Number)
+  const local = new Date(y, m - 1, d)
+  return `${local.getMonth() + 1}/${local.getDate()}`
 }
 
 export function WeightProgressChart({ data, className }: WeightProgressChartProps) {

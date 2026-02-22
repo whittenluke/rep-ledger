@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { useProgressAnalytics, useExerciseProgress } from '@/hooks/useProgressAnalytics'
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates'
 import { useExercises } from '@/hooks/useExercises'
+import { useUserStore } from '@/store/user'
 import { ConsistencyHeatmap } from '@/components/charts/ConsistencyHeatmap'
 import { VolumeChart } from '@/components/charts/VolumeChart'
 import { WeightProgressChart } from '@/components/charts/WeightProgressChart'
@@ -28,6 +29,7 @@ export function Progress() {
 
   const { templates } = useWorkoutTemplates()
   const { exercises } = useExercises()
+  const weightUnit = useUserStore((s) => s.weightUnit)
 
   const templatesWithSessions = templates.filter((t) => templateIds.includes(t.id))
   const selectedTemplate = selectedTemplateId ?? templatesWithSessions[0]?.id ?? null
@@ -81,12 +83,12 @@ export function Progress() {
           Volume over time
         </h2>
         <p className="text-sm text-muted-foreground mb-2">
-          Weekly total (sets × reps × weight)
+          Total volume ({weightUnit}) — sum of reps × weight per set. Each point is one week (Monday–Sunday).
         </p>
         {weeklyVolume.length === 0 ? (
           <p className="text-sm text-muted-foreground">No volume data yet.</p>
         ) : (
-          <VolumeChart data={weeklyVolume} />
+          <VolumeChart data={weeklyVolume} unit={weightUnit} />
         )}
       </section>
 
@@ -96,7 +98,7 @@ export function Progress() {
             By workout
           </h2>
           <p className="text-sm text-muted-foreground mb-2">
-            Volume by template
+            Volume by template ({weightUnit}). Each point is one week (Monday–Sunday).
           </p>
           <select
             value={selectedTemplate ?? ''}
@@ -112,7 +114,7 @@ export function Progress() {
           {volumeForTemplate.length === 0 ? (
             <EmptyState message="No volume for this template yet" description="Run this workout and log sets to see trends." />
           ) : (
-            <VolumeChart data={volumeForTemplate} />
+            <VolumeChart data={volumeForTemplate} unit={weightUnit} />
           )}
         </section>
       )}
@@ -146,9 +148,11 @@ export function Progress() {
             )}
             {exerciseProgress.volumeByDate.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Volume over time</p>
+                <p className="text-xs text-muted-foreground mb-1">Volume over time ({weightUnit}) — per workout day</p>
                 <VolumeChart
                   data={exerciseProgress.volumeByDate.map((d) => ({ week: d.date, volume: d.volume }))}
+                  unit={weightUnit}
+                  bucket="day"
                 />
               </div>
             )}
@@ -159,7 +163,10 @@ export function Progress() {
                   {exerciseProgress.bestSet.weight} × {exerciseProgress.bestSet.reps} reps
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(exerciseProgress.bestSet.date).toLocaleDateString()}
+                  {(() => {
+                    const [y, m, d] = exerciseProgress.bestSet.date.split('-').map(Number)
+                    return new Date(y, m - 1, d).toLocaleDateString()
+                  })()}
                 </p>
               </div>
             )}

@@ -16,8 +16,12 @@ export interface SetRow {
 
 const MS_PER_DAY = 86400000
 
-function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10)
+/** YYYY-MM-DD in the user's local timezone (for date bucketing and consistency). */
+function toLocalDateStr(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function getWeekStart(d: Date) {
@@ -74,17 +78,26 @@ export function useProgressAnalytics() {
     return acc
   }, {})
 
-  const workoutDays = new Set(sessions.map((s) => toDateStr(new Date(s.completed_at))))
+  const workoutDays = new Set(sessions.map((s) => toLocalDateStr(new Date(s.completed_at))))
 
   const currentStreak = (() => {
     let count = 0
     let d = new Date()
-    toDateStr(d)
     while (true) {
-      const str = toDateStr(d)
+      const str = toLocalDateStr(d)
       if (workoutDays.has(str)) count++
       else break
       d = new Date(d.getTime() - MS_PER_DAY)
+    }
+    return count
+  })()
+
+  const workoutsThisWeek = (() => {
+    const weekStart = getWeekStart(new Date())
+    let count = 0
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)
+      if (workoutDays.has(toLocalDateStr(d))) count++
     }
     return count
   })()
@@ -96,7 +109,7 @@ export function useProgressAnalytics() {
       if (!session?.completed_at) return
       const vol = (set.actual_reps ?? 0) * (set.weight ?? 0)
       if (vol <= 0) return
-      const weekKey = toDateStr(getWeekStart(new Date(session.completed_at)))
+      const weekKey = toLocalDateStr(getWeekStart(new Date(session.completed_at)))
       weekToVolume[weekKey] = (weekToVolume[weekKey] ?? 0) + vol
     })
     return Object.entries(weekToVolume)
@@ -117,7 +130,7 @@ export function useProgressAnalytics() {
         if (!session?.completed_at) return
         const vol = (set.actual_reps ?? 0) * (set.weight ?? 0)
         if (vol <= 0) return
-        const weekKey = toDateStr(getWeekStart(new Date(session.completed_at)))
+        const weekKey = toLocalDateStr(getWeekStart(new Date(session.completed_at)))
         weekToVolume[weekKey] = (weekToVolume[weekKey] ?? 0) + vol
       })
       return Object.entries(weekToVolume)
@@ -131,6 +144,7 @@ export function useProgressAnalytics() {
   return {
     workoutDays,
     currentStreak,
+    workoutsThisWeek,
     weeklyVolume,
     sessions,
     sets,
@@ -163,7 +177,7 @@ export function useExerciseProgress(
   exerciseSets.forEach((set) => {
     const session = sessionById[set.session_id]
     if (!session?.completed_at) return
-    const dateStr = toDateStr(new Date(session.completed_at))
+    const dateStr = toLocalDateStr(new Date(session.completed_at))
     const w = set.weight ?? 0
     const r = set.actual_reps ?? 0
     if (w > 0) {
