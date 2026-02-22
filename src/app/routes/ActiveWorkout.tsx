@@ -171,8 +171,8 @@ export function ActiveWorkout() {
         <h2 className="font-display text-2xl font-semibold text-foreground mb-1">
           {currentExercise.name}
         </h2>
-        {currentExercise.muscle_group && (
-          <p className="text-sm text-muted-foreground mb-8">{currentExercise.muscle_group}</p>
+        {currentExercise.primary_muscle && (
+          <p className="text-sm text-muted-foreground mb-8">{currentExercise.primary_muscle}</p>
         )}
         <div className="flex-1 flex flex-col justify-center">
           <button
@@ -205,8 +205,8 @@ export function ActiveWorkout() {
       <h2 className="font-display text-xl font-semibold text-foreground">
         {currentExercise.name}
       </h2>
-      {currentExercise.muscle_group && (
-        <p className="text-sm text-muted-foreground mb-4">{currentExercise.muscle_group}</p>
+      {currentExercise.primary_muscle && (
+        <p className="text-sm text-muted-foreground mb-4">{currentExercise.primary_muscle}</p>
       )}
 
       <ul className="space-y-2 mb-2">

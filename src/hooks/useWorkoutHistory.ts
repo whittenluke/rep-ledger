@@ -85,7 +85,7 @@ export interface SessionSetWithExercise {
   actual_duration_seconds: number | null
   weight: number | null
   completed: boolean
-  exercises: { name: string; muscle_group: string | null; type: string } | null
+  exercises: { name: string; primary_muscle: string | null; type: string } | null
 }
 
 export interface SessionDetail {
@@ -122,7 +122,7 @@ export function useSessionDetail(sessionId: string | null) {
     }
     const { data: setsData, error: setsErr } = await supabase
       .from('session_sets')
-      .select('id, exercise_id, set_number, actual_reps, actual_duration_seconds, weight, completed, exercises(name, muscle_group, type)')
+      .select('id, exercise_id, set_number, actual_reps, actual_duration_seconds, weight, completed, exercises(name, primary_muscle, type)')
       .eq('session_id', sessionId)
       .order('exercise_id')
       .order('set_number')

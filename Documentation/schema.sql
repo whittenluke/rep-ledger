@@ -9,11 +9,26 @@
 -- Tables (users managed by Supabase Auth)
 -- =============================================================================
 
+-- Exercises: user_id NULL = system exercise (read-only for users); non-null = user's own exercise.
+-- Users can pick system exercises and clone them to customize (insert new row with user_id set).
+-- Primary muscle: anatomical name (e.g. Pectorals, Deltoids). Used for filter/group in UI.
+-- Secondary muscles: array of anatomical names; useful for search ("everything that works Triceps").
+-- Movement pattern: for balanced programming (Push/Pull/Hinge/Squat/Carry/Core).
+-- Equipment: what you use to perform the exercise.
+-- is_bodyweight: when true, weight is not logged during a session (e.g. Push Up, Plank).
 create table exercises (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users not null,
+  user_id uuid references auth.users,                    -- null = system exercise
   name text not null,
-  muscle_group text,
+  primary_muscle text not null,                           -- anatomical, e.g. "Pectorals", "Deltoids"
+  secondary_muscles text[] not null default '{}',        -- e.g. array["Deltoids", "Triceps"]
+  movement_pattern text not null check (movement_pattern in (
+    'Push', 'Pull', 'Hinge', 'Squat', 'Carry', 'Core'
+  )),
+  equipment text not null check (equipment in (
+    'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Kettlebell', 'Resistance Band'
+  )),
+  is_bodyweight boolean not null default true,            -- if true, session weight field N/A
   notes text,
   type text not null default 'reps' check (type in ('reps', 'time')),
   created_at timestamptz default now()
@@ -82,9 +97,15 @@ alter table scheduled_workouts enable row level security;
 alter table workout_sessions enable row level security;
 alter table session_sets enable row level security;
 
--- Exercises: users can only see/touch their own
-create policy "exercises_owner" on exercises
-  for all using (auth.uid() = user_id);
+-- Exercises: users can read system exercises (user_id is null) and their own; only mutate their own
+create policy "exercises_select" on exercises
+  for select using (user_id is null or user_id = auth.uid());
+create policy "exercises_insert" on exercises
+  for insert with check (user_id = auth.uid());
+create policy "exercises_update" on exercises
+  for update using (user_id = auth.uid());
+create policy "exercises_delete" on exercises
+  for delete using (user_id = auth.uid());
 
 -- Workout templates: same
 create policy "templates_owner" on workout_templates
@@ -115,25 +136,5 @@ create policy "session_sets_owner" on session_sets
       select 1 from workout_sessions
       where id = session_sets.session_id
       and user_id = auth.uid()
-    )
-  );
-
--- =============================================================================
--- Migration: hold / time-based exercises (run on existing DBs only)
--- =============================================================================
--- Uncomment and run in Supabase SQL editor if your DB was created before this:
---
--- alter table exercises add column if not exists type text not null default 'reps' check (type in ('reps', 'time'));
--- alter table template_exercises add column if not exists target_duration_seconds integer;
--- alter table session_sets add column if not exists actual_duration_seconds integer;
-
--- =============================================================================
--- Migration: allow deleting scheduled_workouts when sessions exist (run on existing DBs)
--- =============================================================================
--- When a scheduled_workout is deleted, set workout_sessions.scheduled_workout_id to NULL
--- so the session (and history) is preserved. Run in Supabase SQL editor:
---
--- alter table workout_sessions
---   drop constraint if exists workout_sessions_scheduled_workout_id_fkey,
---   add constraint workout_sessions_scheduled_workout_id_fkey
---   foreign key (scheduled_workout_id) references scheduled_workouts(id) on delete set null;
+  )
+);

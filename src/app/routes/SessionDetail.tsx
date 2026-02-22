@@ -78,7 +78,7 @@ export function SessionDetail() {
           const sets = setsByExercise[exerciseId] ?? []
           const first = sets[0]
           const name = first?.exercises?.name ?? 'Unknown'
-          const muscleGroup = first?.exercises?.muscle_group
+          const muscleGroup = first?.exercises?.primary_muscle
           const isTime = first?.exercises?.type === 'time'
           return (
             <div key={exerciseId} className="rounded-lg border border-border bg-card overflow-hidden">

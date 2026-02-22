@@ -1,59 +1,151 @@
 import { useState } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { useExercises, type Exercise, type ExerciseInsert, type ExerciseType } from '@/hooks/useExercises'
+import {
+  useExercises,
+  type Exercise,
+  type ExerciseInsert,
+  type ExerciseType,
+  type MovementPattern,
+  MOVEMENT_PATTERNS,
+  EQUIPMENT_OPTIONS,
+} from '@/hooks/useExercises'
 import { cn } from '@/lib/utils'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Library, FilePlus, ChevronRight, ChevronDown } from 'lucide-react'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 
+const defaultForm: ExerciseInsert = {
+  name: '',
+  primary_muscle: '',
+  secondary_muscles: [],
+  movement_pattern: 'Push',
+  equipment: 'Bodyweight',
+  is_bodyweight: true,
+  notes: '',
+  type: 'reps',
+}
+
+type FormState = ExerciseInsert & { secondary_muscles_str: string }
+
+function formToPayload(form: FormState): ExerciseInsert {
+  const secondary = form.secondary_muscles_str
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return {
+    name: form.name.trim(),
+    primary_muscle: form.primary_muscle.trim(),
+    secondary_muscles: secondary,
+    movement_pattern: form.movement_pattern,
+    equipment: form.equipment,
+    is_bodyweight: form.is_bodyweight,
+    notes: form.notes?.trim() || null,
+    type: form.type ?? 'reps',
+  }
+}
+
 export function Exercises() {
-  const { exercises, loading, error, create, update, remove } = useExercises()
+  const { exercises, systemExercises, loading, error, create, cloneFromSystem, update, remove } = useExercises()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [isAdding, setIsAdding] = useState(false)
-  const [form, setForm] = useState<ExerciseInsert>({ name: '', muscle_group: '', notes: '', type: 'reps' })
+  const [addMode, setAddMode] = useState<'choice' | 'library' | 'create' | null>(null)
+  const [form, setForm] = useState<FormState>({
+    ...defaultForm,
+    secondary_muscles_str: '',
+  })
+  const [libraryQuery, setLibraryQuery] = useState('')
+  const [cloningId, setCloningId] = useState<string | null>(null)
+  const [equipmentFilter, setEquipmentFilter] = useState<Set<string>>(() => new Set())
+  const [expandedGroups, setExpandedGroups] = useState<Set<MovementPattern>>(() => new Set())
 
   function openAdd() {
-    setIsAdding(true)
-    setEditingId(null)
-    setForm({ name: '', muscle_group: '', notes: '', type: 'reps' })
+    setAddMode('choice')
+    setForm({ ...defaultForm, secondary_muscles_str: '' })
+    setLibraryQuery('')
+  }
+
+  function openFromLibrary() {
+    setAddMode('library')
+    setLibraryQuery('')
+    setEquipmentFilter(new Set())
+    setExpandedGroups(new Set())
+  }
+
+  function toggleEquipment(eq: string) {
+    setEquipmentFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(eq)) next.delete(eq)
+      else next.add(eq)
+      return next
+    })
+  }
+
+  function toggleGroup(pattern: MovementPattern) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(pattern)) next.delete(pattern)
+      else next.add(pattern)
+      return next
+    })
+  }
+
+  function openCreateNew() {
+    setAddMode('create')
+  }
+
+  function closeAddModal() {
+    setAddMode(null)
+    setCloningId(null)
   }
 
   function openEdit(ex: Exercise) {
     setEditingId(ex.id)
-    setIsAdding(false)
+    setAddMode(null)
     setForm({
       name: ex.name,
-      muscle_group: ex.muscle_group ?? '',
+      primary_muscle: ex.primary_muscle,
+      secondary_muscles: ex.secondary_muscles ?? [],
+      secondary_muscles_str: (ex.secondary_muscles ?? []).join(', '),
+      movement_pattern: ex.movement_pattern,
+      equipment: ex.equipment,
+      is_bodyweight: ex.is_bodyweight,
       notes: ex.notes ?? '',
       type: ex.type ?? 'reps',
     })
   }
 
   function cancelForm() {
-    setIsAdding(false)
     setEditingId(null)
-    setForm({ name: '', muscle_group: '', notes: '', type: 'reps' })
+    setAddMode(null)
+    setForm({ ...defaultForm, secondary_muscles_str: '' })
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const payload = {
-      name: form.name.trim(),
-      muscle_group: form.muscle_group.trim() || null,
-      notes: form.notes.trim() || null,
-      type: form.type ?? 'reps',
-    }
-    if (!payload.name) return
+    const payload = formToPayload(form)
+    if (!payload.name || !payload.primary_muscle) return
     try {
-      if (isAdding) {
-        await create(payload)
-        cancelForm()
-      } else if (editingId) {
+      if (editingId) {
         await update(editingId, payload)
         cancelForm()
+      } else {
+        await create(payload)
+        closeAddModal()
+        setForm({ ...defaultForm, secondary_muscles_str: '' })
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  async function handleCloneFromSystem(systemExercise: Exercise) {
+    try {
+      setCloningId(systemExercise.id)
+      await cloneFromSystem(systemExercise)
+      closeAddModal()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setCloningId(null)
     }
   }
 
@@ -69,6 +161,28 @@ export function Exercises() {
 
   const inputClass =
     'w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent'
+
+  const filteredBySearch =
+    libraryQuery.trim() === ''
+      ? systemExercises
+      : systemExercises.filter(
+          (ex) =>
+            ex.name.toLowerCase().includes(libraryQuery.toLowerCase()) ||
+            ex.primary_muscle.toLowerCase().includes(libraryQuery.toLowerCase()) ||
+            (ex.secondary_muscles ?? []).some((m) => m.toLowerCase().includes(libraryQuery.toLowerCase()))
+        )
+
+  const filteredByEquipment =
+    equipmentFilter.size === 0
+      ? filteredBySearch
+      : filteredBySearch.filter((ex) => equipmentFilter.has(ex.equipment))
+
+  const groupedByPattern: { pattern: MovementPattern; exercises: Exercise[] }[] = MOVEMENT_PATTERNS.map(
+    (pattern) => ({
+      pattern,
+      exercises: filteredByEquipment.filter((ex) => ex.movement_pattern === pattern),
+    })
+  ).filter((g) => g.exercises.length > 0)
 
   return (
     <div className="p-4 pb-20">
@@ -87,7 +201,156 @@ export function Exercises() {
         <p className="mt-4 text-sm text-red-500">Failed to load exercises. Try refreshing.</p>
       )}
 
-      {(isAdding || editingId) && (
+      {/* Add flow: choice modal */}
+      {addMode === 'choice' && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-black/60 sm:bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add exercise"
+        >
+          <div
+            className="w-full max-w-md bg-card border-t sm:border border-border rounded-t-2xl sm:rounded-2xl p-4 pb-8 safe-area-pb"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-lg font-semibold text-foreground mb-3">Add exercise</h2>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={openFromLibrary}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left"
+              >
+                <Library className="w-5 h-5 text-muted-foreground shrink-0" />
+                <span className="font-medium">From exercise library</span>
+              </button>
+              <button
+                type="button"
+                onClick={openCreateNew}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left"
+              >
+                <FilePlus className="w-5 h-5 text-muted-foreground shrink-0" />
+                <span className="font-medium">Create new</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={closeAddModal}
+              className="mt-4 w-full py-2.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add flow: pick from system library */}
+      {addMode === 'library' && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-background"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pick from library"
+        >
+          <div className="p-4 border-b border-border flex flex-col gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <input
+                type="search"
+                placeholder="Search library…"
+                value={libraryQuery}
+                onChange={(e) => setLibraryQuery(e.target.value)}
+                className={cn(inputClass, 'flex-1')}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setAddMode('choice')}
+                className="px-3 py-2 rounded-lg border border-border min-h-[44px]"
+              >
+                Back
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {EQUIPMENT_OPTIONS.map((eq) => (
+                <button
+                  key={eq}
+                  type="button"
+                  onClick={() => toggleEquipment(eq)}
+                  className={cn(
+                    'shrink-0 px-3 py-2 rounded-lg border text-sm font-medium min-h-[44px] transition-colors',
+                    equipmentFilter.has(eq)
+                      ? 'bg-accent text-primary-foreground border-accent'
+                      : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-accent/50'
+                  )}
+                >
+                  {eq}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto p-4">
+            {systemExercises.length === 0 ? (
+              <EmptyState
+                message="No system exercises yet"
+                description="Create a new exercise to get started."
+              />
+            ) : groupedByPattern.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No matches.</p>
+            ) : (
+              <div className="space-y-1">
+                {groupedByPattern.map(({ pattern, exercises }) => {
+                  const isExpanded = expandedGroups.has(pattern)
+                  const sectionId = `library-section-${pattern}`
+                  return (
+                    <div key={pattern} role="region" aria-labelledby={`${sectionId}-heading`}>
+                      <button
+                        type="button"
+                        id={`${sectionId}-heading`}
+                        aria-expanded={isExpanded}
+                        aria-controls={sectionId}
+                        onClick={() => toggleGroup(pattern)}
+                        className="w-full flex items-center gap-2 py-3 px-2 rounded-lg hover:bg-muted/50 min-h-[44px] text-left"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />
+                        )}
+                        <span className="font-display font-semibold text-foreground">
+                          {pattern} ({exercises.length})
+                        </span>
+                      </button>
+                      {isExpanded && (
+                        <ul id={sectionId} className="space-y-2 pl-7 pr-0 pt-1 pb-2">
+                          {exercises.map((ex) => (
+                            <li key={ex.id}>
+                              <button
+                                type="button"
+                                onClick={() => handleCloneFromSystem(ex)}
+                                disabled={cloningId !== null}
+                                className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-accent/50 min-h-[44px] disabled:opacity-50"
+                              >
+                                <p className="font-medium text-foreground">{ex.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {ex.primary_muscle}
+                                  {ex.movement_pattern ? ` · ${ex.movement_pattern}` : ''}
+                                  {ex.equipment ? ` · ${ex.equipment}` : ''}
+                                </p>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add flow: create new form (inline or in modal) */}
+      {(addMode === 'create' || editingId) && (
         <form onSubmit={handleSubmit} className="mt-4 p-4 rounded-lg border border-border bg-card space-y-3">
           <input
             required
@@ -97,7 +360,7 @@ export function Exercises() {
             className={inputClass}
           />
           <div>
-            <span className="block text-sm text-muted-foreground mb-1">Type</span>
+            <label className="block text-sm text-muted-foreground mb-1">Type</label>
             <div className="flex gap-2">
               {(['reps', 'time'] as ExerciseType[]).map((t) => (
                 <label key={t} className="flex items-center gap-2 cursor-pointer">
@@ -113,24 +376,78 @@ export function Exercises() {
               ))}
             </div>
           </div>
-          <input
-            placeholder="Muscle group"
-            value={form.muscle_group}
-            onChange={(e) => setForm((f) => ({ ...f, muscle_group: e.target.value }))}
-            className={inputClass}
-          />
+          <div>
+            <label className="block text-sm text-muted-foreground mb-1">Primary muscle (anatomical name)</label>
+            <input
+              required
+              placeholder="e.g. Pectorals, Deltoids"
+              value={form.primary_muscle}
+              onChange={(e) => setForm((f) => ({ ...f, primary_muscle: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-muted-foreground mb-1">Secondary muscles (comma-separated)</label>
+            <input
+              placeholder="e.g. Deltoids, Triceps"
+              value={form.secondary_muscles_str}
+              onChange={(e) => setForm((f) => ({ ...f, secondary_muscles_str: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-muted-foreground mb-1">Movement pattern</label>
+            <select
+              value={form.movement_pattern}
+              onChange={(e) => setForm((f) => ({ ...f, movement_pattern: e.target.value as Exercise['movement_pattern'] }))}
+              className={inputClass}
+            >
+              {MOVEMENT_PATTERNS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-muted-foreground mb-1">Equipment</label>
+            <select
+              value={form.equipment}
+              onChange={(e) => setForm((f) => ({ ...f, equipment: e.target.value as Exercise['equipment'] }))}
+              className={inputClass}
+            >
+              {EQUIPMENT_OPTIONS.map((eq) => (
+                <option key={eq} value={eq}>
+                  {eq}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.is_bodyweight}
+              onChange={(e) => setForm((f) => ({ ...f, is_bodyweight: e.target.checked }))}
+              className="rounded border-border text-accent focus:ring-accent"
+            />
+            <span className="text-sm">Bodyweight (no weight logged in session)</span>
+          </label>
           <textarea
             placeholder="Notes"
-            value={form.notes}
+            value={form.notes ?? ''}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             rows={2}
             className={cn(inputClass, 'resize-none')}
           />
           <div className="flex gap-2">
             <button type="submit" className="px-4 py-2 rounded-lg bg-accent text-primary-foreground font-medium">
-              {isAdding ? 'Add' : 'Save'}
+              {editingId ? 'Save' : 'Add'}
             </button>
-            <button type="button" onClick={cancelForm} className="px-4 py-2 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={editingId ? cancelForm : () => { closeAddModal(); setAddMode(null); setForm({ ...defaultForm, secondary_muscles_str: '' }); }}
+              className="px-4 py-2 rounded-lg border border-border"
+            >
               Cancel
             </button>
           </div>
@@ -142,7 +459,7 @@ export function Exercises() {
       ) : exercises.length === 0 ? (
         <EmptyState
           message="No exercises yet"
-          description="Add your first exercise to build workout templates."
+          description="Add from the library or create a new exercise."
         />
       ) : (
         <ul className="mt-4 space-y-2">
@@ -157,7 +474,9 @@ export function Exercises() {
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-foreground truncate">{ex.name}</p>
                 <p className="text-sm text-muted-foreground truncate">
-                  {ex.muscle_group ? [ex.muscle_group, ex.type === 'time' ? 'Time' : null].filter(Boolean).join(' · ') : ex.type === 'time' ? 'Time' : ''}
+                  {[ex.primary_muscle, ex.movement_pattern, ex.type === 'time' ? 'Time' : null]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">

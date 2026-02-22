@@ -7,7 +7,7 @@ export interface SessionExercise {
   exercise_id: string
   position: number
   name: string
-  muscle_group: string | null
+  primary_muscle: string | null
   type: 'reps' | 'time'
   target_sets: number
   target_reps: number
@@ -91,7 +91,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
   const loadTemplateExercises = useCallback(async (templateId: string) => {
     const { data, error: e } = await supabase
       .from('template_exercises')
-      .select('id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, exercises(name, muscle_group, type)')
+      .select('id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, exercises(name, primary_muscle, type)')
       .eq('template_id', templateId)
       .order('position')
     if (e) throw e
@@ -103,7 +103,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
       target_reps: number
       target_duration_seconds: number | null
       target_weight: number | null
-      exercises: { name: string; muscle_group: string | null; type: 'reps' | 'time' } | null
+      exercises: { name: string; primary_muscle: string | null; type: 'reps' | 'time' } | null
     }>
     setExercises(
       rows.map((r) => ({
@@ -111,7 +111,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         exercise_id: r.exercise_id,
         position: r.position,
         name: r.exercises?.name ?? 'Unknown',
-        muscle_group: r.exercises?.muscle_group ?? null,
+        primary_muscle: r.exercises?.primary_muscle ?? null,
         type: r.exercises?.type ?? 'reps',
         target_sets: r.target_sets,
         target_reps: r.target_reps,

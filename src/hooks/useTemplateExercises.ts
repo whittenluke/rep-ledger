@@ -11,7 +11,7 @@ export interface TemplateExerciseRow {
   target_duration_seconds: number | null
   target_weight: number | null
   notes: string | null
-  exercises: { name: string; muscle_group: string | null; type: 'reps' | 'time' } | null
+  exercises: { name: string; primary_muscle: string | null; type: 'reps' | 'time' } | null
 }
 
 export interface TemplateExerciseInsert {
@@ -47,7 +47,7 @@ export function useTemplateExercises(templateId: string | null) {
     setError(null)
     const { data, error: e } = await supabase
       .from('template_exercises')
-      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, muscle_group, type)')
+      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type)')
       .eq('template_id', templateId)
       .order('position')
     if (e) {
@@ -70,7 +70,7 @@ export function useTemplateExercises(templateId: string | null) {
       const { data, error: e } = await supabase
         .from('template_exercises')
         .insert({ ...payload, template_id: templateId, position, target_duration_seconds: payload.target_duration_seconds ?? null })
-        .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, muscle_group, type)')
+        .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type)')
         .single()
       if (e) throw e
       setRows((prev) => [...prev, data as TemplateExerciseRow].sort((a, b) => a.position - b.position))
@@ -84,7 +84,7 @@ export function useTemplateExercises(templateId: string | null) {
       .from('template_exercises')
       .update(payload)
       .eq('id', id)
-      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, muscle_group, type)')
+      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type)')
       .single()
     if (e) throw e
     setRows((prev) =>

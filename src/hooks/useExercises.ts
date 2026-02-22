@@ -3,32 +3,62 @@ import { supabase } from '@/lib/supabase'
 
 export type ExerciseType = 'reps' | 'time'
 
+export const MOVEMENT_PATTERNS = ['Push', 'Pull', 'Hinge', 'Squat', 'Carry', 'Core'] as const
+export type MovementPattern = (typeof MOVEMENT_PATTERNS)[number]
+
+export const EQUIPMENT_OPTIONS = [
+  'Barbell',
+  'Dumbbell',
+  'Cable',
+  'Machine',
+  'Bodyweight',
+  'Kettlebell',
+  'Resistance Band',
+] as const
+export type Equipment = (typeof EQUIPMENT_OPTIONS)[number]
+
 export interface Exercise {
   id: string
-  user_id: string
+  user_id: string | null
   name: string
-  muscle_group: string | null
+  primary_muscle: string
+  secondary_muscles: string[]
+  movement_pattern: MovementPattern
+  equipment: Equipment
+  is_bodyweight: boolean
   notes: string | null
-  type?: ExerciseType
+  type: ExerciseType
   created_at: string
 }
 
 export interface ExerciseInsert {
   name: string
-  muscle_group?: string | null
+  primary_muscle: string
+  secondary_muscles?: string[]
+  movement_pattern: MovementPattern
+  equipment: Equipment
+  is_bodyweight: boolean
   notes?: string | null
   type?: ExerciseType
 }
 
 export interface ExerciseUpdate {
   name?: string
-  muscle_group?: string | null
+  primary_muscle?: string
+  secondary_muscles?: string[]
+  movement_pattern?: MovementPattern
+  equipment?: Equipment
+  is_bodyweight?: boolean
   notes?: string | null
   type?: ExerciseType
 }
 
+const exerciseColumns =
+  'id, user_id, name, primary_muscle, secondary_muscles, movement_pattern, equipment, is_bodyweight, notes, type, created_at'
+
 export function useExercises() {
   const [exercises, setExercises] = useState<Exercise[]>([])
+  const [systemExercises, setSystemExercises] = useState<Exercise[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -37,13 +67,16 @@ export function useExercises() {
     setError(null)
     const { data, error: e } = await supabase
       .from('exercises')
-      .select('id, user_id, name, muscle_group, notes, type, created_at')
+      .select(exerciseColumns)
       .order('name')
     if (e) {
       setError(e)
       setExercises([])
+      setSystemExercises([])
     } else {
-      setExercises((data ?? []) as Exercise[])
+      const list = (data ?? []) as Exercise[]
+      setExercises(list.filter((ex) => ex.user_id != null))
+      setSystemExercises(list.filter((ex) => ex.user_id == null))
     }
     setLoading(false)
   }, [])
@@ -59,10 +92,52 @@ export function useExercises() {
         error: authError,
       } = await supabase.auth.getUser()
       if (authError || !user) throw new Error('Not authenticated')
+      const row = {
+        user_id: user.id,
+        name: payload.name.trim(),
+        primary_muscle: payload.primary_muscle.trim(),
+        secondary_muscles: payload.secondary_muscles ?? [],
+        movement_pattern: payload.movement_pattern,
+        equipment: payload.equipment,
+        is_bodyweight: payload.is_bodyweight,
+        notes: payload.notes?.trim() || null,
+        type: payload.type ?? 'reps',
+      }
       const { data, error: e } = await supabase
         .from('exercises')
-        .insert({ ...payload, type: payload.type ?? 'reps', user_id: user.id })
-        .select('id, user_id, name, muscle_group, notes, type, created_at')
+        .insert(row)
+        .select(exerciseColumns)
+        .single()
+      if (e) throw e
+      setExercises((prev) => [...prev, data as Exercise].sort((a, b) => a.name.localeCompare(b.name)))
+      return data as Exercise
+    },
+    []
+  )
+
+  const cloneFromSystem = useCallback(
+    async (systemExercise: Exercise) => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
+      if (authError || !user) throw new Error('Not authenticated')
+      if (systemExercise.user_id != null) throw new Error('Can only clone system exercises')
+      const row = {
+        user_id: user.id,
+        name: systemExercise.name,
+        primary_muscle: systemExercise.primary_muscle,
+        secondary_muscles: systemExercise.secondary_muscles ?? [],
+        movement_pattern: systemExercise.movement_pattern,
+        equipment: systemExercise.equipment,
+        is_bodyweight: systemExercise.is_bodyweight,
+        notes: systemExercise.notes,
+        type: systemExercise.type ?? 'reps',
+      }
+      const { data, error: e } = await supabase
+        .from('exercises')
+        .insert(row)
+        .select(exerciseColumns)
         .single()
       if (e) throw e
       setExercises((prev) => [...prev, data as Exercise].sort((a, b) => a.name.localeCompare(b.name)))
@@ -72,11 +147,13 @@ export function useExercises() {
   )
 
   const update = useCallback(async (id: string, payload: ExerciseUpdate) => {
+    const updates: Record<string, unknown> = { ...payload }
+    if (payload.secondary_muscles !== undefined) updates.secondary_muscles = payload.secondary_muscles
     const { data, error: e } = await supabase
       .from('exercises')
-      .update(payload)
+      .update(updates)
       .eq('id', id)
-      .select('id, user_id, name, muscle_group, notes, type, created_at')
+      .select(exerciseColumns)
       .single()
     if (e) throw e
     setExercises((prev) =>
@@ -91,5 +168,15 @@ export function useExercises() {
     setExercises((prev) => prev.filter((ex) => ex.id !== id))
   }, [])
 
-  return { exercises, loading, error, refetch: fetch, create, update, remove }
+  return {
+    exercises,
+    systemExercises,
+    loading,
+    error,
+    refetch: fetch,
+    create,
+    cloneFromSystem,
+    update,
+    remove,
+  }
 }

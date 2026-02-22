@@ -36,7 +36,8 @@ export function TemplateEdit() {
       !rows.some((r) => r.exercise_id === ex.id) &&
       (pickerQuery.trim() === '' ||
         ex.name.toLowerCase().includes(pickerQuery.toLowerCase()) ||
-        (ex.muscle_group?.toLowerCase().includes(pickerQuery.toLowerCase()) ?? false))
+        (ex.primary_muscle?.toLowerCase().includes(pickerQuery.toLowerCase()) ?? false) ||
+        (ex.secondary_muscles ?? []).some((m) => m.toLowerCase().includes(pickerQuery.toLowerCase())))
   )
 
   const saveNameAndNotes = useCallback(async () => {
@@ -152,8 +153,8 @@ export function TemplateEdit() {
                     <p className="font-medium text-foreground">
                       {r.exercises?.name ?? 'Unknown'}
                     </p>
-                    {r.exercises?.muscle_group && (
-                      <p className="text-sm text-muted-foreground">{r.exercises.muscle_group}</p>
+                    {r.exercises?.primary_muscle && (
+                      <p className="text-sm text-muted-foreground">{r.exercises.primary_muscle}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
@@ -304,7 +305,7 @@ export function TemplateEdit() {
                   >
                     <p className="font-medium text-foreground">{ex.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {[ex.muscle_group, ex.type === 'time' ? 'Time (hold)' : null].filter(Boolean).join(' · ') || '\u00a0'}
+                      {[ex.primary_muscle, ex.type === 'time' ? 'Time (hold)' : null].filter(Boolean).join(' · ') || '\u00a0'}
                     </p>
                   </button>
                 </li>
