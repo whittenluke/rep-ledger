@@ -15,6 +15,7 @@ import { TemplateEdit } from '@/app/routes/TemplateEdit'
 import { ActiveWorkout } from '@/app/routes/ActiveWorkout'
 import { History } from '@/app/routes/History'
 import { SessionDetail } from '@/app/routes/SessionDetail'
+import { Settings } from '@/app/routes/Settings'
 
 function AuthenticatedLayout() {
   return (
@@ -50,20 +51,10 @@ const router = createBrowserRouter([
       { path: 'session/:id', element: <ActiveWorkout /> },
       { path: 'history', element: <History /> },
       { path: 'history/:sessionId', element: <SessionDetail /> },
-      // Placeholders for More links (no nav entry)
-      { path: 'settings', element: <Placeholder title="Settings" /> },
+      { path: 'settings', element: <Settings /> },
     ],
   },
 ])
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="p-4 pb-20">
-      <h1 className="font-display text-xl font-semibold">{title}</h1>
-      <p className="mt-4 text-muted-foreground">Coming soon.</p>
-    </div>
-  )
-}
 
 export default function App() {
   return <RouterProvider router={router} />

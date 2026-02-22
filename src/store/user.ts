@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export interface UserState {
   weightUnit: 'kg' | 'lbs'
@@ -7,9 +8,19 @@ export interface UserState {
   setDefaultRestSeconds: (seconds: number) => void
 }
 
-export const useUserStore = create<UserState>()((set) => ({
-  weightUnit: 'kg',
-  defaultRestSeconds: 90,
-  setWeightUnit: (unit) => set({ weightUnit: unit }),
-  setDefaultRestSeconds: (seconds) => set({ defaultRestSeconds: Math.max(0, seconds) }),
-}))
+const restClamp = (n: number) => Math.min(600, Math.max(0, Math.round(n)))
+
+export const useUserStore = create<UserState>()(
+  persist(
+    (set) => ({
+      weightUnit: 'kg',
+      defaultRestSeconds: 90,
+      setWeightUnit: (unit) => set({ weightUnit: unit }),
+      setDefaultRestSeconds: (seconds) => set({ defaultRestSeconds: restClamp(seconds) }),
+    }),
+    {
+      name: 'rep-ledger-user-prefs',
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    }
+  )
+)
