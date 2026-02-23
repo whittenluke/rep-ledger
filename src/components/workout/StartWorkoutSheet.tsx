@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCalendar } from '@/hooks/useCalendar'
 import { useWorkoutHistory } from '@/hooks/useWorkoutHistory'
@@ -29,6 +29,11 @@ export function StartWorkoutSheet({ open, onClose }: StartWorkoutSheetProps) {
     now.getMonth() + 1
   )
   const { sessions: recentSessions, loading: historyLoading } = useWorkoutHistory()
+
+  // Refetch calendar when sheet opens so we see the latest scheduled workouts (e.g. just scheduled on Calendar or Dashboard)
+  useEffect(() => {
+    if (open) refetchCalendar()
+  }, [open, refetchCalendar])
   const { templates } = useWorkoutTemplates()
   const [startingTemplateId, setStartingTemplateId] = useState<string | null>(null)
 

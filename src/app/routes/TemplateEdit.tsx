@@ -28,7 +28,7 @@ export function TemplateEdit() {
   const navigate = useNavigate()
   const { templates, loading: templatesLoading, update: updateTemplate, remove: removeTemplate } = useWorkoutTemplates()
   const { rows, loading, add, remove, reorder, addSet, removeSet, updateSet, refetch } = useTemplateExercises(id ?? null)
-  const { exercises, systemExercises, ensureInLibrary } = useExercises()
+  const { exercises, systemExercises } = useExercises()
 
   const template = templates.find((t) => t.id === id)
   const [name, setName] = useState('')
@@ -154,15 +154,14 @@ export function TemplateEdit() {
       if (!id) return
       try {
         setAddingSystemId(systemEx.id)
-        const userEx = await ensureInLibrary(systemEx)
-        await handleAddExercise(userEx.id, userEx.type ?? 'reps')
+        await handleAddExercise(systemEx.id, systemEx.type ?? 'reps')
       } catch (err) {
         console.error(err)
       } finally {
         setAddingSystemId(null)
       }
     },
-    [id, ensureInLibrary, handleAddExercise]
+    [id, handleAddExercise]
   )
 
   const handleDeleteTemplate = useCallback(async () => {

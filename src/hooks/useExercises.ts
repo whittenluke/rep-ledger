@@ -116,51 +116,6 @@ export function useExercises() {
     []
   )
 
-  const cloneFromSystem = useCallback(
-    async (systemExercise: Exercise) => {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser()
-      if (authError || !user) throw new Error('Not authenticated')
-      if (systemExercise.user_id != null) throw new Error('Can only clone system exercises')
-      const row = {
-        user_id: user.id,
-        name: systemExercise.name,
-        primary_muscle: systemExercise.primary_muscle,
-        secondary_muscles: systemExercise.secondary_muscles ?? [],
-        movement_pattern: systemExercise.movement_pattern,
-        equipment: systemExercise.equipment,
-        is_bodyweight: systemExercise.is_bodyweight,
-        notes: systemExercise.notes,
-        type: systemExercise.type ?? 'reps',
-        image_url: systemExercise.image_url ?? null,
-      }
-      const { data, error: e } = await supabase
-        .from('exercises')
-        .insert(row)
-        .select(exerciseColumns)
-        .single()
-      if (e) throw e
-      setExercises((prev) => [...prev, data as Exercise].sort((a, b) => a.name.localeCompare(b.name)))
-      return data as Exercise
-    },
-    []
-  )
-
-  /** Returns the user's exercise for this system exercise: existing clone if one exists, otherwise clones and returns. No duplicate clones. */
-  const ensureInLibrary = useCallback(
-    async (systemExercise: Exercise): Promise<Exercise> => {
-      if (systemExercise.user_id != null) throw new Error('Can only ensure system exercises')
-      const existing = exercises.find(
-        (ex) => ex.user_id != null && ex.name === systemExercise.name && ex.primary_muscle === systemExercise.primary_muscle
-      )
-      if (existing) return existing
-      return cloneFromSystem(systemExercise)
-    },
-    [exercises, cloneFromSystem]
-  )
-
   const update = useCallback(async (id: string, payload: ExerciseUpdate) => {
     const updates: Record<string, unknown> = { ...payload }
     if (payload.secondary_muscles !== undefined) updates.secondary_muscles = payload.secondary_muscles
@@ -190,8 +145,6 @@ export function useExercises() {
     error,
     refetch: fetch,
     create,
-    cloneFromSystem,
-    ensureInLibrary,
     update,
     remove,
   }

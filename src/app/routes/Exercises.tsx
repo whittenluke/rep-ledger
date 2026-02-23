@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import {
   useExercises,
@@ -10,18 +10,21 @@ import {
   EQUIPMENT_OPTIONS,
 } from '@/hooks/useExercises'
 import { cn } from '@/lib/utils'
-import {
-  MUSCLE_GROUP_LABELS,
-  MUSCLE_GROUP_TO_PRIMARY_MUSCLES,
-  type MuscleGroupLabel,
-} from '@/lib/muscleGroupMapping'
-import { Plus, Pencil, Trash2, Library, FilePlus, ChevronRight, ChevronDown, Dumbbell } from 'lucide-react'
+import { PRIMARY_MUSCLES } from '@/lib/muscleGroupMapping'
+import { Plus, Pencil, Trash2, Dumbbell, ChevronDown, Check, X } from 'lucide-react'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 
+const selectTriggerClass =
+  'w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent flex items-center justify-between gap-2 min-h-[42px] text-left'
+const selectPanelClass =
+  'absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg max-h-60 overflow-auto'
+const selectOptionClass =
+  'px-3 py-2.5 text-sm text-foreground hover:bg-muted cursor-pointer flex items-center justify-between gap-2'
+
 const defaultForm: ExerciseInsert = {
   name: '',
-  primary_muscle: '',
+  primary_muscle: 'Pectorals',
   secondary_muscles: [],
   movement_pattern: 'Push',
   equipment: 'Bodyweight',
@@ -30,17 +33,13 @@ const defaultForm: ExerciseInsert = {
   type: 'reps',
 }
 
-type FormState = ExerciseInsert & { secondary_muscles_str: string }
+type FormState = ExerciseInsert
 
 function formToPayload(form: FormState): ExerciseInsert {
-  const secondary = form.secondary_muscles_str
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
   return {
     name: form.name.trim(),
     primary_muscle: form.primary_muscle.trim(),
-    secondary_muscles: secondary,
+    secondary_muscles: form.secondary_muscles,
     movement_pattern: form.movement_pattern,
     equipment: form.equipment,
     is_bodyweight: form.is_bodyweight,
@@ -49,67 +48,34 @@ function formToPayload(form: FormState): ExerciseInsert {
   }
 }
 
+type OpenDropdown = 'primary' | 'secondary' | 'movement' | 'equipment' | null
+
 export function Exercises() {
-  const { exercises, systemExercises, loading, error, create, cloneFromSystem, update, remove } = useExercises()
+  const { exercises, loading, error, create, update, remove } = useExercises()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [addMode, setAddMode] = useState<'choice' | 'library' | 'create' | null>(null)
-  const [form, setForm] = useState<FormState>({
-    ...defaultForm,
-    secondary_muscles_str: '',
-  })
-  const [libraryQuery, setLibraryQuery] = useState('')
-  const [cloningId, setCloningId] = useState<string | null>(null)
-  const [equipmentFilter, setEquipmentFilter] = useState<Set<string>>(() => new Set())
-  const [muscleGroupFilter, setMuscleGroupFilter] = useState<Set<MuscleGroupLabel>>(() => new Set())
-  const [expandedGroups, setExpandedGroups] = useState<Set<MovementPattern>>(() => new Set())
+  const [addMode, setAddMode] = useState<'create' | null>(null)
+  const [form, setForm] = useState<FormState>({ ...defaultForm })
+  const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (openDropdown === null) return
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openDropdown])
 
   function openAdd() {
-    setAddMode('choice')
-    setForm({ ...defaultForm, secondary_muscles_str: '' })
-    setLibraryQuery('')
-  }
-
-  function openFromLibrary() {
-    setAddMode('library')
-    setLibraryQuery('')
-    setEquipmentFilter(new Set())
-    setExpandedGroups(new Set())
-  }
-
-  function toggleEquipment(eq: string) {
-    setEquipmentFilter((prev) => {
-      const next = new Set(prev)
-      if (next.has(eq)) next.delete(eq)
-      else next.add(eq)
-      return next
-    })
-  }
-
-  function toggleMuscleGroup(label: MuscleGroupLabel) {
-    setMuscleGroupFilter((prev) => {
-      const next = new Set(prev)
-      if (next.has(label)) next.delete(label)
-      else next.add(label)
-      return next
-    })
-  }
-
-  function toggleGroup(pattern: MovementPattern) {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(pattern)) next.delete(pattern)
-      else next.add(pattern)
-      return next
-    })
-  }
-
-  function openCreateNew() {
     setAddMode('create')
+    setForm({ ...defaultForm })
   }
 
   function closeAddModal() {
     setAddMode(null)
-    setCloningId(null)
   }
 
   function openEdit(ex: Exercise) {
@@ -119,7 +85,6 @@ export function Exercises() {
       name: ex.name,
       primary_muscle: ex.primary_muscle,
       secondary_muscles: ex.secondary_muscles ?? [],
-      secondary_muscles_str: (ex.secondary_muscles ?? []).join(', '),
       movement_pattern: ex.movement_pattern,
       equipment: ex.equipment,
       is_bodyweight: ex.is_bodyweight,
@@ -131,7 +96,16 @@ export function Exercises() {
   function cancelForm() {
     setEditingId(null)
     setAddMode(null)
-    setForm({ ...defaultForm, secondary_muscles_str: '' })
+    setForm({ ...defaultForm })
+  }
+
+  function toggleSecondaryMuscle(muscle: string) {
+    setForm((f) => ({
+      ...f,
+      secondary_muscles: f.secondary_muscles.includes(muscle)
+        ? f.secondary_muscles.filter((m) => m !== muscle)
+        : [...f.secondary_muscles, muscle],
+    }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -145,22 +119,10 @@ export function Exercises() {
       } else {
         await create(payload)
         closeAddModal()
-        setForm({ ...defaultForm, secondary_muscles_str: '' })
+        setForm({ ...defaultForm })
       }
     } catch (err) {
       console.error(err)
-    }
-  }
-
-  async function handleCloneFromSystem(systemExercise: Exercise) {
-    try {
-      setCloningId(systemExercise.id)
-      await cloneFromSystem(systemExercise)
-      closeAddModal()
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setCloningId(null)
     }
   }
 
@@ -176,42 +138,6 @@ export function Exercises() {
 
   const inputClass =
     'w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent'
-
-  const filteredBySearch =
-    libraryQuery.trim() === ''
-      ? systemExercises
-      : systemExercises.filter(
-          (ex) =>
-            ex.name.toLowerCase().includes(libraryQuery.toLowerCase()) ||
-            ex.primary_muscle.toLowerCase().includes(libraryQuery.toLowerCase()) ||
-            (ex.secondary_muscles ?? []).some((m) => m.toLowerCase().includes(libraryQuery.toLowerCase()))
-        )
-
-  const filteredByEquipment =
-    equipmentFilter.size === 0
-      ? filteredBySearch
-      : filteredBySearch.filter((ex) => equipmentFilter.has(ex.equipment))
-
-  const filteredByMuscleGroup =
-    muscleGroupFilter.size === 0
-      ? filteredByEquipment
-      : filteredByEquipment.filter((ex) => {
-          for (const label of muscleGroupFilter) {
-            const muscles = new Set(MUSCLE_GROUP_TO_PRIMARY_MUSCLES[label])
-            const involves =
-              muscles.has(ex.primary_muscle) ||
-              (ex.secondary_muscles ?? []).some((m) => muscles.has(m))
-            if (!involves) return false
-          }
-          return true
-        })
-
-  const groupedByPattern: { pattern: MovementPattern; exercises: Exercise[] }[] = MOVEMENT_PATTERNS.map(
-    (pattern) => ({
-      pattern,
-      exercises: filteredByMuscleGroup.filter((ex) => ex.movement_pattern === pattern),
-    })
-  ).filter((g) => g.exercises.length > 0)
 
   return (
     <div className="p-4 pb-20">
@@ -435,52 +361,179 @@ export function Exercises() {
               ))}
             </div>
           </div>
-          <div>
-            <label className="block text-sm text-muted-foreground mb-1">Primary muscle (anatomical name)</label>
-            <input
-              required
-              placeholder="e.g. Pectorals, Deltoids"
-              value={form.primary_muscle}
-              onChange={(e) => setForm((f) => ({ ...f, primary_muscle: e.target.value }))}
-              className={inputClass}
-            />
+          <div ref={dropdownRef}>
+            <div>
+            <label className="block text-sm text-muted-foreground mb-1">Primary muscle</label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'primary' ? null : 'primary')}
+                className={selectTriggerClass}
+                aria-expanded={openDropdown === 'primary'}
+                aria-haspopup="listbox"
+              >
+                <span>
+                  {!PRIMARY_MUSCLES.includes(form.primary_muscle as (typeof PRIMARY_MUSCLES)[number]) &&
+                  form.primary_muscle
+                    ? form.primary_muscle
+                    : form.primary_muscle || 'Select'}
+                </span>
+                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'primary' && 'rotate-180')} />
+              </button>
+              {openDropdown === 'primary' && (
+                <ul className={selectPanelClass} role="listbox">
+                  {!PRIMARY_MUSCLES.includes(form.primary_muscle as (typeof PRIMARY_MUSCLES)[number]) &&
+                    form.primary_muscle && (
+                      <li
+                        role="option"
+                        aria-selected={true}
+                        className={cn(selectOptionClass, 'bg-muted/50')}
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        {form.primary_muscle}
+                        <Check className="w-4 h-4 text-accent shrink-0" />
+                      </li>
+                    )}
+                  {PRIMARY_MUSCLES.map((m) => (
+                    <li
+                      key={m}
+                      role="option"
+                      aria-selected={form.primary_muscle === m}
+                      className={cn(selectOptionClass, form.primary_muscle === m && 'bg-muted/50')}
+                      onClick={() => {
+                        setForm((f) => ({ ...f, primary_muscle: m }))
+                        setOpenDropdown(null)
+                      }}
+                    >
+                      {m}
+                      {form.primary_muscle === m && <Check className="w-4 h-4 text-accent shrink-0" />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
           <div>
-            <label className="block text-sm text-muted-foreground mb-1">Secondary muscles (comma-separated)</label>
-            <input
-              placeholder="e.g. Deltoids, Triceps"
-              value={form.secondary_muscles_str}
-              onChange={(e) => setForm((f) => ({ ...f, secondary_muscles_str: e.target.value }))}
-              className={inputClass}
-            />
+            <label className="block text-sm text-muted-foreground mb-1">Secondary muscles</label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'secondary' ? null : 'secondary')}
+                className={selectTriggerClass}
+                aria-expanded={openDropdown === 'secondary'}
+                aria-haspopup="listbox"
+              >
+                <span className="text-muted-foreground">
+                  {form.secondary_muscles.length === 0 ? 'Add secondary muscles' : 'Add or remove'}
+                </span>
+                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'secondary' && 'rotate-180')} />
+              </button>
+              {openDropdown === 'secondary' && (
+                <ul className={selectPanelClass} role="listbox" aria-multiselectable="true">
+                  {PRIMARY_MUSCLES.map((m) => (
+                    <li
+                      key={m}
+                      role="option"
+                      aria-selected={form.secondary_muscles.includes(m)}
+                      className={cn(selectOptionClass, form.secondary_muscles.includes(m) && 'bg-muted/50')}
+                      onClick={() => toggleSecondaryMuscle(m)}
+                    >
+                      {m}
+                      {form.secondary_muscles.includes(m) && <Check className="w-4 h-4 text-accent shrink-0" />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {form.secondary_muscles.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {form.secondary_muscles.map((m) => (
+                  <span
+                    key={m}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border text-sm text-foreground"
+                  >
+                    {m}
+                    <button
+                      type="button"
+                      onClick={() => toggleSecondaryMuscle(m)}
+                      className="p-0.5 rounded-full hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground min-w-[24px] min-h-[24px] flex items-center justify-center"
+                      aria-label={`Remove ${m}`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm text-muted-foreground mb-1">Movement pattern</label>
-            <select
-              value={form.movement_pattern}
-              onChange={(e) => setForm((f) => ({ ...f, movement_pattern: e.target.value as Exercise['movement_pattern'] }))}
-              className={inputClass}
-            >
-              {MOVEMENT_PATTERNS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'movement' ? null : 'movement')}
+                className={selectTriggerClass}
+                aria-expanded={openDropdown === 'movement'}
+                aria-haspopup="listbox"
+              >
+                <span>{form.movement_pattern}</span>
+                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'movement' && 'rotate-180')} />
+              </button>
+              {openDropdown === 'movement' && (
+                <ul className={selectPanelClass} role="listbox">
+                  {MOVEMENT_PATTERNS.map((p) => (
+                    <li
+                      key={p}
+                      role="option"
+                      aria-selected={form.movement_pattern === p}
+                      className={cn(selectOptionClass, form.movement_pattern === p && 'bg-muted/50')}
+                      onClick={() => {
+                        setForm((f) => ({ ...f, movement_pattern: p }))
+                        setOpenDropdown(null)
+                      }}
+                    >
+                      {p}
+                      {form.movement_pattern === p && <Check className="w-4 h-4 text-accent shrink-0" />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-          <div>
+          <div ref={openDropdown === 'equipment' ? dropdownRef : undefined}>
             <label className="block text-sm text-muted-foreground mb-1">Equipment</label>
-            <select
-              value={form.equipment}
-              onChange={(e) => setForm((f) => ({ ...f, equipment: e.target.value as Exercise['equipment'] }))}
-              className={inputClass}
-            >
-              {EQUIPMENT_OPTIONS.map((eq) => (
-                <option key={eq} value={eq}>
-                  {eq}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'equipment' ? null : 'equipment')}
+                className={selectTriggerClass}
+                aria-expanded={openDropdown === 'equipment'}
+                aria-haspopup="listbox"
+              >
+                <span>{form.equipment}</span>
+                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'equipment' && 'rotate-180')} />
+              </button>
+              {openDropdown === 'equipment' && (
+                <ul className={selectPanelClass} role="listbox">
+                  {EQUIPMENT_OPTIONS.map((eq) => (
+                    <li
+                      key={eq}
+                      role="option"
+                      aria-selected={form.equipment === eq}
+                      className={cn(selectOptionClass, form.equipment === eq && 'bg-muted/50')}
+                      onClick={() => {
+                        setForm((f) => ({ ...f, equipment: eq }))
+                        setOpenDropdown(null)
+                      }}
+                    >
+                      {eq}
+                      {form.equipment === eq && <Check className="w-4 h-4 text-accent shrink-0" />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -504,7 +557,7 @@ export function Exercises() {
             </button>
             <button
               type="button"
-              onClick={editingId ? cancelForm : () => { closeAddModal(); setAddMode(null); setForm({ ...defaultForm, secondary_muscles_str: '' }); }}
+              onClick={editingId ? cancelForm : () => { closeAddModal(); setAddMode(null); setForm({ ...defaultForm }); }}
               className="px-4 py-2 rounded-lg border border-border"
             >
               Cancel
@@ -518,7 +571,7 @@ export function Exercises() {
       ) : exercises.length === 0 ? (
         <EmptyState
           message="No exercises yet"
-          description="Add from the library or create a new exercise."
+          description="Create a new exercise."
         />
       ) : (
         <ul className="mt-4 space-y-2">

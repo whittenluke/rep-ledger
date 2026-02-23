@@ -120,17 +120,11 @@ export function Builder() {
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
                     <span className="font-medium text-foreground truncate">{t.name}</span>
                     {hasMeta && (
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                         <span>{exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}</span>
-                        {movement.length > 0 && (
-                          <span className="border-l border-border pl-2">{movement.join(', ')}</span>
-                        )}
-                        {muscles.length > 0 && (
-                          <span className="border-l border-border pl-2">{muscles.join(', ')}</span>
-                        )}
-                        {equipment.length > 0 && (
-                          <span className="border-l border-border pl-2">{equipment.join(', ')}</span>
-                        )}
+                        {movement.length > 0 && <span>{movement.join(', ')}</span>}
+                        {muscles.length > 0 && <span>{muscles.join(', ')}</span>}
+                        {equipment.length > 0 && <span>{equipment.join(', ')}</span>}
                       </div>
                     )}
                   </div>

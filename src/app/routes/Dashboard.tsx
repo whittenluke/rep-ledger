@@ -173,12 +173,23 @@ export function Dashboard() {
               {notCompletedTodayList.length > 0 && (
                 <div className="space-y-3">
                   {notCompletedTodayList.map((s) => (
-                    <div key={s.id} className="p-4 rounded-lg border border-border bg-card">
+                    <div key={s.id} className="relative p-4 pr-12 rounded-lg border border-border bg-card">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          openRemoveConfirm(s.id, s.workout_templates?.name ?? 'Workout')
+                        }}
+                        className="absolute top-3 right-3 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        aria-label="Unschedule"
+                      >
+                        <Trash2 className="w-5 h-5" aria-hidden />
+                      </button>
                       <p className="text-sm text-muted-foreground mb-1">Scheduled for today</p>
                       <p className="font-display text-xl font-semibold text-foreground">
                         {s.workout_templates?.name ?? 'Workout'}
                       </p>
-                      <div className="mt-4 flex flex-col gap-2">
+                      <div className="mt-4">
                         <Link
                           to={`/session/${s.id}`}
                           className={cn(
@@ -190,14 +201,6 @@ export function Dashboard() {
                           <Dumbbell className="w-5 h-5" aria-hidden />
                           Start workout
                         </Link>
-                        <button
-                          type="button"
-                          onClick={() => openRemoveConfirm(s.id, s.workout_templates?.name ?? 'Workout')}
-                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-red-500/50 transition-colors min-h-[44px]"
-                        >
-                          <Trash2 className="w-4 h-4" aria-hidden />
-                          Remove from today
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -225,15 +228,15 @@ export function Dashboard() {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={openScheduleModal}
-                className="w-full py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors min-h-[44px]"
-              >
-                {completedTodayList.length > 0 || notCompletedTodayList.length > 0
-                  ? 'Schedule another workout'
-                  : 'Schedule for another day'}
-              </button>
+              {(completedTodayList.length === 0 && notCompletedTodayList.length === 0) && (
+                <button
+                  type="button"
+                  onClick={openScheduleModal}
+                  className="w-full py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors min-h-[44px]"
+                >
+                  Schedule for another day
+                </button>
+              )}
 
               <Link
                 to="/calendar"
@@ -309,13 +312,13 @@ export function Dashboard() {
 
           {removeConfirm && (
             <div
-              className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-black/50"
+              className="fixed inset-0 z-[60] flex items-end sm:items-center sm:justify-center bg-black/50 p-0 sm:p-4"
               role="dialog"
               aria-modal="true"
-              aria-label="Remove workout from today?"
+              aria-label="Remove workout?"
             >
-              <div className="w-full max-w-md bg-card border-t sm:border border-border rounded-t-2xl sm:rounded-2xl p-4 pb-8 safe-area-pb">
-                <h2 className="font-display text-lg font-semibold mb-2">Remove from today?</h2>
+              <div className="w-full max-w-md bg-card border-t sm:border border-border rounded-t-2xl sm:rounded-2xl p-4 pb-8 safe-area-pb mb-20 sm:mb-0">
+                <h2 className="font-display text-lg font-semibold mb-2">Remove?</h2>
                 <p className="text-sm text-muted-foreground mb-4">
                   Remove &quot;{removeConfirm.name}&quot; from today? You can schedule it again anytime.
                 </p>
