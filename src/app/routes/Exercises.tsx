@@ -298,7 +298,7 @@ export function Exercises() {
                 Back
               </button>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
               {EQUIPMENT_OPTIONS.map((eq) => (
                 <button
                   key={eq}
@@ -315,7 +315,7 @@ export function Exercises() {
                 </button>
               ))}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
               {MUSCLE_GROUP_LABELS.map((label) => (
                 <button
                   key={label}
