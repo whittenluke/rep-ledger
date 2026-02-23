@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 
 export type ExerciseType = 'reps' | 'time'
 
-export const MOVEMENT_PATTERNS = ['Push', 'Pull', 'Hinge', 'Squat', 'Carry', 'Core'] as const
+export const MOVEMENT_PATTERNS = ['Push', 'Pull', 'Hinge', 'Squat', 'Carry', 'Core', 'Cardio'] as const
 export type MovementPattern = (typeof MOVEMENT_PATTERNS)[number]
 
 export const EQUIPMENT_OPTIONS = [

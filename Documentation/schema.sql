@@ -13,7 +13,7 @@
 -- Users can pick system exercises and clone them to customize (insert new row with user_id set).
 -- Primary muscle: anatomical name (e.g. Pectorals, Deltoids). Used for filter/group in UI.
 -- Secondary muscles: array of anatomical names; useful for search ("everything that works Triceps").
--- Movement pattern: for balanced programming (Push/Pull/Hinge/Squat/Carry/Core).
+-- Movement pattern: for balanced programming (Push/Pull/Hinge/Squat/Carry/Core/Cardio).
 -- Equipment: what you use to perform the exercise.
 -- is_bodyweight: when true, weight is not logged during a session (e.g. Push Up, Plank).
 -- image_url: optional URL to an exercise image (e.g. Supabase Storage public URL).
@@ -24,7 +24,7 @@ create table exercises (
   primary_muscle text not null,                           -- anatomical, e.g. "Pectorals", "Deltoids"
   secondary_muscles text[] not null default '{}',        -- e.g. array["Deltoids", "Triceps"]
   movement_pattern text not null check (movement_pattern in (
-    'Push', 'Pull', 'Hinge', 'Squat', 'Carry', 'Core'
+    'Push', 'Pull', 'Hinge', 'Squat', 'Carry', 'Core', 'Cardio'
   )),
   equipment text not null check (equipment in (
     'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Kettlebell', 'Resistance Band'
