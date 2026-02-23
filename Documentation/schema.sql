@@ -16,6 +16,7 @@
 -- Movement pattern: for balanced programming (Push/Pull/Hinge/Squat/Carry/Core).
 -- Equipment: what you use to perform the exercise.
 -- is_bodyweight: when true, weight is not logged during a session (e.g. Push Up, Plank).
+-- image_url: optional URL to an exercise image (e.g. Supabase Storage public URL).
 create table exercises (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users,                    -- null = system exercise
@@ -31,6 +32,7 @@ create table exercises (
   is_bodyweight boolean not null default true,            -- if true, session weight field N/A
   notes text,
   type text not null default 'reps' check (type in ('reps', 'time')),
+  image_url text,                                         -- e.g. Supabase Storage public URL
   created_at timestamptz default now()
 );
 

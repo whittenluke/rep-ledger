@@ -28,6 +28,7 @@ export interface Exercise {
   is_bodyweight: boolean
   notes: string | null
   type: ExerciseType
+  image_url: string | null
   created_at: string
 }
 
@@ -54,7 +55,7 @@ export interface ExerciseUpdate {
 }
 
 const exerciseColumns =
-  'id, user_id, name, primary_muscle, secondary_muscles, movement_pattern, equipment, is_bodyweight, notes, type, created_at'
+  'id, user_id, name, primary_muscle, secondary_muscles, movement_pattern, equipment, is_bodyweight, notes, type, image_url, created_at'
 
 export function useExercises() {
   const [exercises, setExercises] = useState<Exercise[]>([])
@@ -133,6 +134,7 @@ export function useExercises() {
         is_bodyweight: systemExercise.is_bodyweight,
         notes: systemExercise.notes,
         type: systemExercise.type ?? 'reps',
+        image_url: systemExercise.image_url ?? null,
       }
       const { data, error: e } = await supabase
         .from('exercises')

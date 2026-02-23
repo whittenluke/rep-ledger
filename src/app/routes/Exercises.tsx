@@ -15,7 +15,7 @@ import {
   MUSCLE_GROUP_TO_PRIMARY_MUSCLES,
   type MuscleGroupLabel,
 } from '@/lib/muscleGroupMapping'
-import { Plus, Pencil, Trash2, Library, FilePlus, ChevronRight, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, Library, FilePlus, ChevronRight, ChevronDown, Dumbbell } from 'lucide-react'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -373,14 +373,27 @@ export function Exercises() {
                                 type="button"
                                 onClick={() => handleCloneFromSystem(ex)}
                                 disabled={cloningId !== null}
-                                className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-accent/50 min-h-[44px] disabled:opacity-50"
+                                className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-accent/50 min-h-[44px] disabled:opacity-50 flex items-center gap-3"
                               >
-                                <p className="font-medium text-foreground">{ex.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {ex.primary_muscle}
-                                  {ex.movement_pattern ? ` · ${ex.movement_pattern}` : ''}
-                                  {ex.equipment ? ` · ${ex.equipment}` : ''}
-                                </p>
+                                {ex.image_url ? (
+                                  <img
+                                    src={ex.image_url}
+                                    alt=""
+                                    className="w-12 h-12 rounded-lg object-cover shrink-0 bg-muted"
+                                  />
+                                ) : (
+                                  <span className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                                    <Dumbbell className="w-5 h-5 text-muted-foreground" aria-hidden />
+                                  </span>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-foreground">{ex.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {ex.primary_muscle}
+                                    {ex.movement_pattern ? ` · ${ex.movement_pattern}` : ''}
+                                    {ex.equipment ? ` · ${ex.equipment}` : ''}
+                                  </p>
+                                </div>
                               </button>
                             </li>
                           ))}
@@ -517,6 +530,17 @@ export function Exercises() {
                 editingId === ex.id && 'ring-2 ring-accent'
               )}
             >
+              {ex.image_url ? (
+                <img
+                  src={ex.image_url}
+                  alt=""
+                  className="w-12 h-12 rounded-lg object-cover shrink-0 bg-muted"
+                />
+              ) : (
+                <span className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                  <Dumbbell className="w-5 h-5 text-muted-foreground" aria-hidden />
+                </span>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-foreground truncate">{ex.name}</p>
                 <p className="text-sm text-muted-foreground truncate">
