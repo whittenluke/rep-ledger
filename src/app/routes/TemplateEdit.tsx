@@ -246,190 +246,185 @@ export function TemplateEdit() {
         ) : (
           <ul className="space-y-2">
             {rows.map((r, index) => (
-              <li
-                key={r.id}
-                className="rounded-lg border border-border bg-card overflow-hidden flex flex-row min-h-[140px]"
-              >
-                <div className="w-28 shrink-0 self-stretch flex flex-col bg-muted">
-                  {r.exercises?.image_url ? (
-                    <img
-                      src={r.exercises.image_url}
-                      alt=""
-                      className="w-full h-full min-h-[140px] object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full min-h-[140px] flex items-center justify-center">
-                      <Dumbbell className="w-10 h-10 text-muted-foreground" aria-hidden />
-                    </div>
-                  )}
+              <li key={r.id} className="rounded-lg border border-border bg-card overflow-hidden">
+                {/* Exercise header: name, muscle, reorder/delete — one row */}
+                <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground truncate">{r.exercises?.name ?? 'Unknown'}</p>
+                    {r.exercises?.primary_muscle && (
+                      <p className="text-xs text-muted-foreground truncate">{r.exercises.primary_muscle}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => reorder(index, index - 1)}
+                      disabled={index === 0}
+                      className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
+                      aria-label="Move up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => reorder(index, index + 1)}
+                      disabled={index === rows.length - 1}
+                      className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
+                      aria-label="Move down"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(r.id)}
+                      className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center text-red-500"
+                      aria-label="Remove exercise"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0 flex flex-col gap-2 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground">
-                        {r.exercises?.name ?? 'Unknown'}
-                      </p>
-                      {r.exercises?.primary_muscle && (
-                        <p className="text-sm text-muted-foreground">{r.exercises.primary_muscle}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => reorder(index, index - 1)}
-                        disabled={index === 0}
-                        className="p-2 rounded hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30"
-                        aria-label="Move up"
-                      >
-                        <ChevronUp className="w-5 h-5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => reorder(index, index + 1)}
-                        disabled={index === rows.length - 1}
-                        className="p-2 rounded hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30"
-                        aria-label="Move down"
-                      >
-                        <ChevronDown className="w-5 h-5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(r.id)}
-                        className="p-2 rounded hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500"
-                        aria-label="Remove"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">Sets</span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await addSet(r.id)
-                          } catch (err) {
-                            console.error(err)
-                            await refetch()
-                          }
-                        }}
-                        className="text-sm text-accent hover:underline min-h-[44px] flex items-center"
-                      >
-                        + Add set
-                      </button>
-                    </div>
-                    {(() => {
-                      const sets = r.sets ?? []
-                      const hasRealSets = sets.length > 0
-                      const virtualCount = !hasRealSets && (r.target_sets ?? 0) > 0 ? r.target_sets : 0
-                      const displaySets = hasRealSets
-                        ? sets
-                        : Array.from({ length: virtualCount }, (_, i) => ({
-                            id: `virtual-${r.id}-${i}`,
-                            set_number: i + 1,
-                            target_reps: r.target_reps ?? null,
-                            target_duration_seconds: r.target_duration_seconds ?? null,
-                            target_weight: r.target_weight ?? null,
-                            _virtual: true as const,
-                          }))
-                      return displaySets.map((set, setIndex) => {
-                        const isVirtual = '_virtual' in set && set._virtual
-                        return (
-                          <div
-                            key={set.id}
-                            className="flex flex-wrap items-center gap-2 py-1.5 px-2 rounded bg-muted/50"
-                          >
-                            <span className="text-xs text-muted-foreground w-14 shrink-0">Set {setIndex + 1}</span>
-                            {r.exercises?.type === 'time' ? (
-                              <div className="flex-1 min-w-0 flex items-center gap-2">
-                                {isVirtual ? (
-                                  <span className="text-sm text-muted-foreground">
-                                    {set.target_duration_seconds ?? '—'}s
-                                  </span>
-                                ) : (
-                                  <>
-                                    <label className="sr-only">Target time (sec)</label>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      value={set.target_duration_seconds ?? ''}
-                                      onChange={(e) => {
-                                        const v = e.target.value
-                                        updateSet(set.id, {
-                                          target_duration_seconds: v === '' ? null : parseInt(v, 10) || 0,
-                                        })
-                                      }}
-                                      placeholder="sec"
-                                      className={cn(inputClass, 'py-1.5 flex-1 max-w-[100px]')}
-                                      inputMode="numeric"
-                                    />
-                                    <span className="text-xs text-muted-foreground">sec</span>
-                                  </>
-                                )}
-                              </div>
-                            ) : (
-                              <>
-                                {isVirtual ? (
-                                  <span className="text-sm text-muted-foreground">
-                                    {set.target_reps ?? '—'} reps × {set.target_weight != null && set.target_weight > 0 ? set.target_weight : '—'}
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span className="text-xs text-muted-foreground shrink-0">reps</span>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      value={set.target_reps ?? ''}
-                                      onChange={(e) => {
-                                        const v = e.target.value
-                                        updateSet(set.id, {
-                                          target_reps: v === '' ? null : parseInt(v, 10) || 0,
-                                        })
-                                      }}
-                                      placeholder="—"
-                                      className={cn(inputClass, 'py-1.5 w-16')}
-                                      inputMode="numeric"
-                                      aria-label="Target reps"
-                                    />
-                                    <span className="text-xs text-muted-foreground shrink-0">×</span>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      step={0.5}
-                                      value={set.target_weight ?? ''}
-                                      onChange={(e) => {
-                                        const v = e.target.value
-                                        updateSet(set.id, {
-                                          target_weight: v === '' ? null : parseFloat(v) || 0,
-                                        })
-                                      }}
-                                      placeholder="weight"
-                                      className={cn(inputClass, 'py-1.5 w-20')}
-                                      inputMode="decimal"
-                                      aria-label="Target weight"
-                                    />
-                                  </>
-                                )}
-                              </>
-                            )}
-                            {!isVirtual && (
-                              <button
-                                type="button"
-                                onClick={() => removeSet(set.id, r.id)}
-                                disabled={(r.sets?.length ?? 0) <= 1}
-                                className="p-2 rounded hover:bg-muted text-red-500 disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                                aria-label={`Remove set ${setIndex + 1}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        )
-                      })
-                    })()}
-                  </div>
+                {/* Sets as tight table rows — edge to edge, proportional flex inputs */}
+                <div className="px-3 py-1.5 w-full">
+                  {(() => {
+                    const sets = r.sets ?? []
+                    const hasRealSets = sets.length > 0
+                    const virtualCount = !hasRealSets && (r.target_sets ?? 0) > 0 ? r.target_sets : 0
+                    const displaySets = hasRealSets
+                      ? sets
+                      : Array.from({ length: virtualCount }, (_, i) => ({
+                          id: `virtual-${r.id}-${i}`,
+                          set_number: i + 1,
+                          target_reps: r.target_reps ?? null,
+                          target_duration_seconds: r.target_duration_seconds ?? null,
+                          target_weight: r.target_weight ?? null,
+                          _virtual: true as const,
+                        }))
+                    const isBodyweight = r.exercises?.is_bodyweight === true
+                    const setRowInputClass = cn(
+                      inputClass,
+                      'min-h-[36px] py-1.5 px-2 text-sm min-w-0 border-border/80'
+                    )
+                    return (
+                      <>
+                        {displaySets.map((set, setIndex) => {
+                          const isVirtual = '_virtual' in set && set._virtual
+                          return (
+                            <div
+                              key={set.id}
+                              className="flex items-center gap-2 w-full py-1 min-h-[36px] border-b border-border/50 last:border-b-0"
+                            >
+                              <span className="text-xs text-muted-foreground shrink-0 w-9">Set {setIndex + 1}</span>
+                              {r.exercises?.type === 'time' ? (
+                                <>
+                                  {isVirtual ? (
+                                    <span className="text-sm text-muted-foreground">
+                                      {set.target_duration_seconds ?? '—'}s
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={set.target_duration_seconds ?? ''}
+                                        onChange={(e) => {
+                                          const v = e.target.value
+                                          updateSet(set.id, {
+                                            target_duration_seconds: v === '' ? null : parseInt(v, 10) || 0,
+                                          })
+                                        }}
+                                        placeholder="sec"
+                                        className={cn(setRowInputClass, 'flex-1 min-w-0')}
+                                        inputMode="numeric"
+                                        aria-label="Target time (sec)"
+                                      />
+                                      <span className="text-xs text-muted-foreground shrink-0">sec</span>
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {isVirtual ? (
+                                    <span className="text-sm text-muted-foreground truncate min-w-0">
+                                      {set.target_reps ?? '—'} reps
+                                      {!isBodyweight && (
+                                        <> × {set.target_weight != null && set.target_weight > 0 ? set.target_weight : '—'} lbs</>
+                                      )}
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={set.target_reps ?? ''}
+                                        onChange={(e) => {
+                                          const v = e.target.value
+                                          updateSet(set.id, {
+                                            target_reps: v === '' ? null : parseInt(v, 10) || 0,
+                                          })
+                                        }}
+                                        placeholder="reps"
+                                        className={cn(setRowInputClass, 'flex-[25] min-w-0')}
+                                        inputMode="numeric"
+                                        aria-label="Reps"
+                                      />
+                                      <span className="text-xs text-muted-foreground shrink-0">reps</span>
+                                      {!isBodyweight && (
+                                        <>
+                                          <span className="text-xs text-muted-foreground shrink-0">×</span>
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            step={0.5}
+                                            value={set.target_weight ?? ''}
+                                            onChange={(e) => {
+                                              const v = e.target.value
+                                              updateSet(set.id, {
+                                                target_weight: v === '' ? null : parseFloat(v) || 0,
+                                              })
+                                            }}
+                                            placeholder="lbs"
+                                            className={cn(setRowInputClass, 'flex-[40] min-w-0')}
+                                            inputMode="decimal"
+                                            aria-label="Weight (lbs)"
+                                          />
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              {!isVirtual && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeSet(set.id, r.id)}
+                                  disabled={(r.sets?.length ?? 0) <= 1}
+                                  className="p-1.5 rounded hover:bg-muted text-red-500 disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center shrink-0"
+                                  aria-label={`Remove set ${setIndex + 1}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await addSet(r.id)
+                            } catch (err) {
+                              console.error(err)
+                              await refetch()
+                            }
+                          }}
+                          className="mt-1.5 text-sm text-accent hover:underline py-1"
+                        >
+                          + Add set
+                        </button>
+                      </>
+                    )
+                  })()}
                 </div>
               </li>
             ))}
