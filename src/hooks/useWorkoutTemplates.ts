@@ -7,6 +7,10 @@ export interface WorkoutTemplate {
   name: string
   notes: string | null
   created_at: string
+  template_exercises?: Array<{
+    exercise_id: string
+    exercises: { movement_pattern: string; primary_muscle: string; equipment: string } | null
+  }>
 }
 
 export interface WorkoutTemplateInsert {
@@ -24,7 +28,7 @@ export function useWorkoutTemplates() {
     setError(null)
     const { data, error: e } = await supabase
       .from('workout_templates')
-      .select('id, user_id, name, notes, created_at')
+      .select('id, user_id, name, notes, created_at, template_exercises(exercise_id, exercises(movement_pattern, primary_muscle, equipment))')
       .order('name')
     if (e) {
       setError(e)
@@ -70,6 +74,10 @@ export function useWorkoutTemplates() {
   }, [])
 
   const remove = useCallback(async (id: string) => {
+    // Dissociate sessions that used this template (keep history, drop template link)
+    await supabase.from('workout_sessions').update({ template_id: null }).eq('template_id', id)
+    // Remove any scheduled calendar entries that use this template
+    await supabase.from('scheduled_workouts').delete().eq('template_id', id)
     const { error: e } = await supabase.from('workout_templates').delete().eq('id', id)
     if (e) throw e
     setTemplates((prev) => prev.filter((t) => t.id !== id))

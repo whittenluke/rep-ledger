@@ -19,13 +19,15 @@ import { Settings } from '@/app/routes/Settings'
 
 function AuthenticatedLayout() {
   return (
-    <div className="min-h-screen bg-background">
-      <main>
-        <Outlet />
-      </main>
-      <InstallPrompt />
-      <BottomNav />
-    </div>
+    <StartWorkoutProvider>
+      <div className="min-h-screen bg-background">
+        <main>
+          <Outlet />
+        </main>
+        <InstallPrompt />
+        <BottomNav />
+      </div>
+    </StartWorkoutProvider>
   )
 }
 
@@ -33,13 +35,7 @@ const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/auth/callback', element: <AuthCallback /> },
   {
-    element: (
-      <StartWorkoutProvider>
-        <AuthGuard>
-          <AuthenticatedLayout />
-        </AuthGuard>
-      </StartWorkoutProvider>
-    ),
+    element: <AuthGuard><AuthenticatedLayout /></AuthGuard>,
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'calendar', element: <Calendar /> },

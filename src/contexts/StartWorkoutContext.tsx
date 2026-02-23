@@ -5,7 +5,9 @@ interface StartWorkoutContextValue {
   openStartWorkout: () => void
 }
 
-const StartWorkoutContext = createContext<StartWorkoutContextValue | null>(null)
+const noop = () => {}
+
+const StartWorkoutContext = createContext<StartWorkoutContextValue>({ openStartWorkout: noop })
 
 export function StartWorkoutProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -21,7 +23,5 @@ export function StartWorkoutProvider({ children }: { children: React.ReactNode }
 }
 
 export function useStartWorkout() {
-  const ctx = useContext(StartWorkoutContext)
-  if (!ctx) throw new Error('useStartWorkout must be used within StartWorkoutProvider')
-  return ctx
+  return useContext(StartWorkoutContext)
 }

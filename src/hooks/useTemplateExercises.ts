@@ -20,7 +20,7 @@ export interface TemplateExerciseRow {
   target_duration_seconds: number | null
   target_weight: number | null
   notes: string | null
-  exercises: { name: string; primary_muscle: string | null; type: 'reps' | 'time'; image_url: string | null; is_bodyweight: boolean } | null
+  exercises: { name: string; primary_muscle: string | null; type: 'reps' | 'time'; image_url: string | null; is_bodyweight: boolean; equipment: string } | null
   sets: TemplateExerciseSetRow[]
 }
 
@@ -57,7 +57,7 @@ export function useTemplateExercises(templateId: string | null) {
     setError(null)
     const { data: teData, error: e } = await supabase
       .from('template_exercises')
-      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type, image_url, is_bodyweight)')
+      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type, image_url, is_bodyweight, equipment)')
       .eq('template_id', templateId)
       .order('position')
     if (e) {
@@ -144,7 +144,7 @@ export function useTemplateExercises(templateId: string | null) {
       const { data, error: e } = await supabase
         .from('template_exercises')
         .insert({ ...payload, template_id: templateId, position, target_duration_seconds: payload.target_duration_seconds ?? null })
-        .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type, image_url, is_bodyweight)')
+        .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type, image_url, is_bodyweight, equipment)')
         .single()
       if (e) throw e
       const row = data as TemplateExerciseRow
@@ -181,7 +181,7 @@ export function useTemplateExercises(templateId: string | null) {
       .from('template_exercises')
       .update(payload)
       .eq('id', id)
-      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type, image_url, is_bodyweight)')
+      .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type, image_url, is_bodyweight, equipment)')
       .single()
     if (e) throw e
     setRows((prev) =>

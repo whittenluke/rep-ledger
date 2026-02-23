@@ -45,6 +45,7 @@ export function TemplateEdit() {
   const [equipmentFilter, setEquipmentFilter] = useState<Set<string>>(() => new Set())
   const [muscleGroupFilter, setMuscleGroupFilter] = useState<Set<MuscleGroupLabel>>(() => new Set())
   const [expandedGroups, setExpandedGroups] = useState<Set<MovementPattern>>(() => new Set())
+  const [showSaved, setShowSaved] = useState(false)
 
   function openPicker() {
     setPickerOpen(true)
@@ -80,15 +81,6 @@ export function TemplateEdit() {
       return next
     })
   }
-
-  const filteredExercises = exercises.filter(
-    (ex) =>
-      !rows.some((r) => r.exercise_id === ex.id) &&
-      (pickerQuery.trim() === '' ||
-        ex.name.toLowerCase().includes(pickerQuery.toLowerCase()) ||
-        (ex.primary_muscle?.toLowerCase().includes(pickerQuery.toLowerCase()) ?? false) ||
-        (ex.secondary_muscles ?? []).some((m) => m.toLowerCase().includes(pickerQuery.toLowerCase())))
-  )
 
   const systemFilteredBySearch =
     pickerQuery.trim() === ''
@@ -133,6 +125,12 @@ export function TemplateEdit() {
       await updateTemplate(id, { name: trimmedName, notes: notes.trim() || null })
     }
   }, [id, name, notes, template, updateTemplate])
+
+  const handleSaveAndLeave = useCallback(async () => {
+    await saveNameAndNotes()
+    setShowSaved(true)
+    setTimeout(() => navigate('/builder'), 1500)
+  }, [saveNameAndNotes, navigate])
 
   const handleAddExercise = useCallback(
     async (exerciseId: string, exerciseType: 'reps' | 'time' = 'reps') => {
@@ -194,8 +192,25 @@ export function TemplateEdit() {
   return (
     <div className="p-4 pb-20">
       <div className="flex items-center justify-between gap-2">
-        <button type="button" onClick={() => navigate('/builder')} className="text-muted-foreground hover:text-foreground">
-          ← Back
+        <button
+          type="button"
+          onClick={handleSaveAndLeave}
+          disabled={showSaved}
+          className="text-muted-foreground hover:text-foreground disabled:opacity-80 min-h-[44px]"
+        >
+          {showSaved ? (
+            <span className="text-accent font-medium">Saved ✓</span>
+          ) : (
+            '← Back'
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={handleSaveAndLeave}
+          disabled={showSaved}
+          className="px-4 py-2 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px] disabled:opacity-80"
+        >
+          {showSaved ? 'Saved ✓' : 'Done'}
         </button>
       </div>
 
@@ -251,11 +266,19 @@ export function TemplateEdit() {
                 <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground truncate">{r.exercises?.name ?? 'Unknown'}</p>
-                    {r.exercises?.primary_muscle && (
-                      <p className="text-xs text-muted-foreground truncate">{r.exercises.primary_muscle}</p>
-                    )}
+                    <p className="text-xs text-muted-foreground truncate">
+                      {[r.exercises?.primary_muscle, r.exercises?.equipment].filter(Boolean).join(' · ') || '\u00a0'}
+                    </p>
                   </div>
-                  <div className="flex items-center shrink-0">
+                  <div className="flex items-center shrink-0 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => remove(r.id)}
+                      className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center text-red-500"
+                      aria-label="Remove exercise"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => reorder(index, index - 1)}
@@ -273,14 +296,6 @@ export function TemplateEdit() {
                       aria-label="Move down"
                     >
                       <ChevronDown className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => remove(r.id)}
-                      className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center text-red-500"
-                      aria-label="Remove exercise"
-                    >
-                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -500,27 +515,6 @@ export function TemplateEdit() {
             </div>
           </div>
           <div className="flex-1 overflow-auto p-4 pb-20 safe-area-pb space-y-4">
-            {filteredExercises.length > 0 && (
-              <section>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Your exercises</h3>
-                <ul className="space-y-2">
-                  {filteredExercises.map((ex) => (
-                    <li key={ex.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleAddExercise(ex.id, ex.type ?? 'reps')}
-                        className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-accent/50 min-h-[44px]"
-                      >
-                        <p className="font-medium text-foreground">{ex.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {[ex.primary_muscle, ex.type === 'time' ? 'Time (hold)' : null].filter(Boolean).join(' · ') || '\u00a0'}
-                        </p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
             <section>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">System library</h3>
               {systemExercises.length === 0 ? (
