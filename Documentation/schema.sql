@@ -56,6 +56,18 @@ create table template_exercises (
   notes text
 );
 
+-- Per-set targets for a template exercise (reps/weight or duration). One row per set.
+-- When empty, template_exercises.target_sets/target_reps/target_weight define defaults.
+create table template_exercise_sets (
+  id uuid primary key default gen_random_uuid(),
+  template_exercise_id uuid references template_exercises on delete cascade not null,
+  set_number integer not null,       -- 1-based order
+  target_reps integer,               -- null for time-based
+  target_duration_seconds integer,   -- for time-based sets
+  target_weight numeric,
+  unique(template_exercise_id, set_number)
+);
+
 create table scheduled_workouts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
@@ -95,6 +107,7 @@ create table session_sets (
 alter table exercises enable row level security;
 alter table workout_templates enable row level security;
 alter table template_exercises enable row level security;
+alter table template_exercise_sets enable row level security;
 alter table scheduled_workouts enable row level security;
 alter table workout_sessions enable row level security;
 alter table session_sets enable row level security;
@@ -120,6 +133,17 @@ create policy "template_exercises_owner" on template_exercises
       select 1 from workout_templates
       where id = template_exercises.template_id
       and user_id = auth.uid()
+    )
+  );
+
+-- Template exercise sets: access via parent template exercise (and thus template ownership)
+create policy "template_exercise_sets_owner" on template_exercise_sets
+  for all using (
+    exists (
+      select 1 from template_exercises te
+      join workout_templates wt on wt.id = te.template_id
+      where te.id = template_exercise_sets.template_exercise_id
+      and wt.user_id = auth.uid()
     )
   );
 

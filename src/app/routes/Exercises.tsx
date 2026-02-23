@@ -333,7 +333,7 @@ export function Exercises() {
               ))}
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-4 pb-20 safe-area-pb">
             {systemExercises.length === 0 ? (
               <EmptyState
                 message="No system exercises yet"

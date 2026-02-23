@@ -2,6 +2,12 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useActiveWorkoutStore } from '@/store/activeWorkout'
 
+export interface SessionSetTarget {
+  target_reps: number | null
+  target_duration_seconds: number | null
+  target_weight: number | null
+}
+
 export interface SessionExercise {
   template_exercise_id: string
   exercise_id: string
@@ -13,6 +19,8 @@ export interface SessionExercise {
   target_reps: number
   target_duration_seconds: number | null
   target_weight: number | null
+  /** Per-set targets from template (when present). Used to create session_sets and for display. */
+  set_targets?: SessionSetTarget[]
 }
 
 export interface SessionSetRow {
@@ -20,6 +28,7 @@ export interface SessionSetRow {
   set_number: number
   target_reps: number | null
   target_duration_seconds: number | null
+  target_weight: number | null
   actual_reps: number | null
   actual_duration_seconds: number | null
   weight: number | null
@@ -89,13 +98,13 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
   }, [scheduledWorkoutId, storedSessionId, storedScheduledId, setSession])
 
   const loadTemplateExercises = useCallback(async (templateId: string) => {
-    const { data, error: e } = await supabase
+    const { data: teData, error: e } = await supabase
       .from('template_exercises')
       .select('id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, exercises(name, primary_muscle, type)')
       .eq('template_id', templateId)
       .order('position')
     if (e) throw e
-    const rows = (data ?? []) as Array<{
+    const rows = (teData ?? []) as Array<{
       id: string
       exercise_id: string
       position: number
@@ -105,19 +114,46 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
       target_weight: number | null
       exercises: { name: string; primary_muscle: string | null; type: 'reps' | 'time' } | null
     }>
+    const teIds = rows.map((r) => r.id)
+    const { data: setData } = await supabase
+      .from('template_exercise_sets')
+      .select('template_exercise_id, set_number, target_reps, target_duration_seconds, target_weight')
+      .in('template_exercise_id', teIds.length ? teIds : ['00000000-0000-0000-0000-000000000000'])
+      .order('set_number')
+    const setRows = (setData ?? []) as Array<{
+      template_exercise_id: string
+      set_number: number
+      target_reps: number | null
+      target_duration_seconds: number | null
+      target_weight: number | null
+    }>
+    const setsByTeId = new Map<string, SessionSetTarget[]>()
+    for (const s of setRows) {
+      const list = setsByTeId.get(s.template_exercise_id) ?? []
+      list.push({
+        target_reps: s.target_reps,
+        target_duration_seconds: s.target_duration_seconds,
+        target_weight: s.target_weight,
+      })
+      setsByTeId.set(s.template_exercise_id, list)
+    }
     setExercises(
-      rows.map((r) => ({
-        template_exercise_id: r.id,
-        exercise_id: r.exercise_id,
-        position: r.position,
-        name: r.exercises?.name ?? 'Unknown',
-        primary_muscle: r.exercises?.primary_muscle ?? null,
-        type: r.exercises?.type ?? 'reps',
-        target_sets: r.target_sets,
-        target_reps: r.target_reps,
-        target_duration_seconds: r.target_duration_seconds,
-        target_weight: r.target_weight,
-      }))
+      rows.map((r) => {
+        const setTargets = setsByTeId.get(r.id)
+        return {
+          template_exercise_id: r.id,
+          exercise_id: r.exercise_id,
+          position: r.position,
+          name: r.exercises?.name ?? 'Unknown',
+          primary_muscle: r.exercises?.primary_muscle ?? null,
+          type: r.exercises?.type ?? 'reps',
+          target_sets: setTargets?.length ?? r.target_sets,
+          target_reps: r.target_reps,
+          target_duration_seconds: r.target_duration_seconds,
+          target_weight: r.target_weight,
+          set_targets: setTargets?.length ? setTargets : undefined,
+        }
+      })
     )
   }, [])
 
@@ -138,17 +174,21 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         actual_duration_seconds: number | null
         completed: boolean
       }>
-      const need = ex.target_sets - existingList.length
+      const targetCount = ex.set_targets?.length ?? ex.target_sets
+      const need = targetCount - existingList.length
       if (need > 0) {
         for (let i = 0; i < need; i++) {
-          const setNumber = existingList.length + i + 1
+          const setIndex = existingList.length + i
+          const setNumber = setIndex + 1
+          const t = ex.set_targets?.[setIndex]
+          const targetReps = ex.type === 'time' ? null : (t?.target_reps ?? ex.target_reps)
           const { data: inserted, error: insErr } = await supabase
             .from('session_sets')
             .insert({
               session_id: sid,
               exercise_id: ex.exercise_id,
               set_number: setNumber,
-              target_reps: ex.type === 'time' ? null : ex.target_reps,
+              target_reps: targetReps,
               completed: false,
             })
             .select('id, set_number, target_reps, actual_reps, actual_duration_seconds, weight, completed')
@@ -165,18 +205,22 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
           })
         }
       }
-      const withTargetDuration = existingList.map((s, i) => ({
-        id: s.id,
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_duration_seconds: ex.type === 'time' ? ex.target_duration_seconds : null,
-        actual_reps: s.actual_reps,
-        actual_duration_seconds: s.actual_duration_seconds,
-        weight: s.weight,
-        completed: s.completed,
-      }))
-      setSets(withTargetDuration)
-      return withTargetDuration
+      const withTargets = existingList.map((s, i) => {
+        const t = ex.set_targets?.[i]
+        return {
+          id: s.id,
+          set_number: s.set_number,
+          target_reps: s.target_reps ?? t?.target_reps ?? (ex.type === 'time' ? null : ex.target_reps),
+          target_duration_seconds: t?.target_duration_seconds ?? (ex.type === 'time' ? ex.target_duration_seconds : null),
+          target_weight: t?.target_weight ?? ex.target_weight ?? null,
+          actual_reps: s.actual_reps,
+          actual_duration_seconds: s.actual_duration_seconds,
+          weight: s.weight,
+          completed: s.completed,
+        }
+      })
+      setSets(withTargets)
+      return withTargets
     },
     []
   )

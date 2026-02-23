@@ -103,8 +103,8 @@ src/
 
 - List of saved workout templates
 - Create/edit a template: give it a name, add exercises, set target sets/reps/weight per exercise, drag to reorder
-- Exercise picker: search/filter from your exercise library, or create a new exercise inline
-- Exercise library tab: manage all exercises (name, muscle group, notes)
+- Exercise picker: search from your exercise library or the system library; adding a system exercise to a template adds it to your library when needed (no duplicate clones). Create new exercises in the Exercise library.
+- Exercise library: manage all exercises (name, muscle group, notes)
 
 ### 4. Active Workout (`/session/:id`)
 
@@ -213,6 +213,7 @@ vite-plugin-pwa config should include:
 14. ~~Build out Settings (weight unit, default rest timer, account, data export JSON, persist prefs)~~ ✅
 15. ~~Active workout UX review (touch targets, rest timer, set-complete micro-interaction)~~ ✅
 16. ~~Calendar: tap completed day to view session summary~~ ✅ 
-17. Exercise list categorization (group/filter by muscle group for easier browsing)
-18. Builder: delete template from list (e.g. long-press or row action) for discoverability
-19. Error and empty state pass on critical flows
+17. ~~Exercise list categorization (group/filter by muscle group for easier browsing)~~ ✅
+18. ~~Builder: delete template from list (e.g. long-press or row action) for discoverability~~ ✅
+19. ~~Builder: add exercises from system library in template picker (cloned to library when needed, no duplicates)~~ ✅
+20. Error and empty state pass on critical flows

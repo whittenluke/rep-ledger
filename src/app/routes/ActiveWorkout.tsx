@@ -222,8 +222,8 @@ export function ActiveWorkout() {
                 set={set}
                 setNumberLabel={index + 1}
                 isTimeBased={isTimeBased}
-                targetReps={currentExercise.target_reps ?? null}
-                targetWeight={currentExercise.target_weight ?? null}
+                targetReps={set.target_reps ?? currentExercise.target_reps ?? null}
+                targetWeight={set.target_weight ?? currentExercise.target_weight ?? null}
                 onActualRepsChange={(v) => updateSet(set.id, { actual_reps: v })}
                 onActualDurationChange={(v) => updateSet(set.id, { actual_duration_seconds: v })}
                 onWeightChange={(v) => updateSet(set.id, { weight: v })}

@@ -148,6 +148,19 @@ export function useExercises() {
     []
   )
 
+  /** Returns the user's exercise for this system exercise: existing clone if one exists, otherwise clones and returns. No duplicate clones. */
+  const ensureInLibrary = useCallback(
+    async (systemExercise: Exercise): Promise<Exercise> => {
+      if (systemExercise.user_id != null) throw new Error('Can only ensure system exercises')
+      const existing = exercises.find(
+        (ex) => ex.user_id != null && ex.name === systemExercise.name && ex.primary_muscle === systemExercise.primary_muscle
+      )
+      if (existing) return existing
+      return cloneFromSystem(systemExercise)
+    },
+    [exercises, cloneFromSystem]
+  )
+
   const update = useCallback(async (id: string, payload: ExerciseUpdate) => {
     const updates: Record<string, unknown> = { ...payload }
     if (payload.secondary_muscles !== undefined) updates.secondary_muscles = payload.secondary_muscles
@@ -178,6 +191,7 @@ export function useExercises() {
     refetch: fetch,
     create,
     cloneFromSystem,
+    ensureInLibrary,
     update,
     remove,
   }
