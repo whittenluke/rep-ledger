@@ -13,7 +13,7 @@ const restClamp = (n: number) => Math.min(600, Math.max(0, Math.round(n)))
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
-      weightUnit: 'kg',
+      weightUnit: 'lbs',
       defaultRestSeconds: 90,
       setWeightUnit: (unit) => set({ weightUnit: unit }),
       setDefaultRestSeconds: (seconds) => set({ defaultRestSeconds: restClamp(seconds) }),

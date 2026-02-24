@@ -11,7 +11,7 @@ import {
 } from '@/hooks/useExercises'
 import { cn } from '@/lib/utils'
 import { PRIMARY_MUSCLES } from '@/lib/muscleGroupMapping'
-import { Plus, Pencil, Trash2, Dumbbell, ChevronDown, Check, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Dumbbell, ChevronDown, Check, X, MoreVertical, Copy } from 'lucide-react'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -53,10 +53,12 @@ type OpenDropdown = 'primary' | 'secondary' | 'movement' | 'equipment' | null
 export function Exercises() {
   const { exercises, loading, error, create, update, remove } = useExercises()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [addMode, setAddMode] = useState<'create' | null>(null)
+  const [addMode, setAddMode] = useState<'choice' | 'create' | 'duplicate' | null>(null)
   const [form, setForm] = useState<FormState>({ ...defaultForm })
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null)
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (openDropdown === null) return
@@ -69,8 +71,19 @@ export function Exercises() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [openDropdown])
 
+  useEffect(() => {
+    if (!menuOpenId) return
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpenId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [menuOpenId])
+
   function openAdd() {
-    setAddMode('create')
+    setAddMode('choice')
     setForm({ ...defaultForm })
   }
 
@@ -78,9 +91,30 @@ export function Exercises() {
     setAddMode(null)
   }
 
+  function startCreateNew() {
+    setAddMode('create')
+    setForm({ ...defaultForm })
+  }
+
+  function startDuplicateFrom(ex: Exercise) {
+    setForm({
+      name: `${ex.name} (copy)`,
+      primary_muscle: ex.primary_muscle,
+      secondary_muscles: ex.secondary_muscles ?? [],
+      movement_pattern: ex.movement_pattern,
+      equipment: ex.equipment,
+      is_bodyweight: ex.is_bodyweight,
+      notes: ex.notes ?? '',
+      type: ex.type ?? 'reps',
+    })
+    setAddMode('create')
+    setMenuOpenId(null)
+  }
+
   function openEdit(ex: Exercise) {
     setEditingId(ex.id)
     setAddMode(null)
+    setMenuOpenId(null)
     setForm({
       name: ex.name,
       primary_muscle: ex.primary_muscle,
@@ -142,7 +176,7 @@ export function Exercises() {
   return (
     <div className="p-4 pb-20">
       <div className="flex items-center justify-between gap-4">
-        <PageHeader title="Exercise library" />
+        <PageHeader title="My Exercises" />
         <button
           type="button"
           onClick={openAdd}
@@ -331,6 +365,80 @@ export function Exercises() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Add flow: choice (create vs duplicate) */}
+      {addMode === 'choice' && (
+        <div className="mt-4 p-4 rounded-lg border border-border bg-card space-y-2">
+          <p className="text-sm text-muted-foreground mb-2">Add exercise</p>
+          <button
+            type="button"
+            onClick={startCreateNew}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left font-medium"
+          >
+            <Plus className="w-5 h-5 text-muted-foreground shrink-0" />
+            Create new
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddMode('duplicate')}
+            disabled={exercises.length === 0}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Copy className="w-5 h-5 text-muted-foreground shrink-0" />
+            Duplicate from existing
+          </button>
+          <button
+            type="button"
+            onClick={closeAddModal}
+            className="mt-2 w-full py-2.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Add flow: pick exercise to duplicate */}
+      {addMode === 'duplicate' && (
+        <div className="mt-4 p-4 rounded-lg border border-border bg-card space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">Choose an exercise to duplicate</p>
+            <button
+              type="button"
+              onClick={() => setAddMode('choice')}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Back
+            </button>
+          </div>
+          <ul className="space-y-2 max-h-60 overflow-auto">
+            {exercises.map((ex) => (
+              <li key={ex.id}>
+                <button
+                  type="button"
+                  onClick={() => startDuplicateFrom(ex)}
+                  className="w-full text-left p-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[44px] flex items-center gap-3"
+                >
+                  {ex.image_url ? (
+                    <img src={ex.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 bg-muted" />
+                  ) : (
+                    <span className="w-10 h-10 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                      <Dumbbell className="w-5 h-5 text-muted-foreground" />
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{ex.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {ex.primary_muscle}
+                      {ex.movement_pattern ? ` · ${ex.movement_pattern}` : ''}
+                    </p>
+                  </div>
+                  <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -602,23 +710,53 @@ export function Exercises() {
                     .join(' · ')}
                 </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="relative shrink-0" ref={menuOpenId === ex.id ? menuRef : null}>
                 <button
                   type="button"
-                  onClick={() => openEdit(ex)}
-                  className="p-2 rounded-lg hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center"
-                  aria-label="Edit"
+                  onClick={() => setMenuOpenId(menuOpenId === ex.id ? null : ex.id)}
+                  className="p-2 rounded-lg hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  aria-label="Exercise options"
+                  aria-expanded={menuOpenId === ex.id}
                 >
-                  <Pencil className="w-5 h-5 text-muted-foreground" />
+                  <MoreVertical className="w-5 h-5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(ex.id)}
-                  className="p-2 rounded-lg hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500"
-                  aria-label="Delete"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                {menuOpenId === ex.id && (
+                  <div
+                    className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-lg border border-border bg-card py-1 shadow-lg"
+                    role="menu"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-muted"
+                      onClick={() => openEdit(ex)}
+                    >
+                      <Pencil className="w-4 h-4 text-muted-foreground shrink-0" />
+                      Edit exercise
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-muted"
+                      onClick={() => startDuplicateFrom(ex)}
+                    >
+                      <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                      Duplicate exercise
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-red-500 hover:bg-destructive/10"
+                      onClick={() => {
+                        setMenuOpenId(null)
+                        handleDelete(ex.id)
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                      Delete exercise
+                    </button>
+                  </div>
+                )}
               </div>
             </li>
           ))}

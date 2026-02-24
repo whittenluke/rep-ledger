@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Download, LogOut } from 'lucide-react'
 
 const REST_PRESETS = [0, 30, 60, 90, 120, 180] as const
+const REST_PRESET_SET = new Set(REST_PRESETS)
 
 export function Settings() {
   const navigate = useNavigate()
@@ -15,6 +16,8 @@ export function Settings() {
   const setWeightUnit = useUserStore((s) => s.setWeightUnit)
   const defaultRestSeconds = useUserStore((s) => s.defaultRestSeconds)
   const setDefaultRestSeconds = useUserStore((s) => s.setDefaultRestSeconds)
+
+  const isCustomRest = !REST_PRESET_SET.has(defaultRestSeconds)
 
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
@@ -87,7 +90,7 @@ export function Settings() {
                 onClick={() => setDefaultRestSeconds(sec)}
                 className={cn(
                   'px-4 py-2.5 rounded-lg border font-medium min-h-[44px] transition-colors',
-                  defaultRestSeconds === sec
+                  !isCustomRest && defaultRestSeconds === sec
                     ? 'border-accent bg-accent/10 text-accent'
                     : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-accent/50'
                 )}
@@ -95,21 +98,40 @@ export function Settings() {
                 {sec === 0 ? 'Off' : `${sec}s`}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() =>
+                setDefaultRestSeconds(isCustomRest ? defaultRestSeconds : 45)
+              }
+              className={cn(
+                'px-4 py-2.5 rounded-lg border font-medium min-h-[44px] transition-colors',
+                isCustomRest
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-accent/50'
+              )}
+            >
+              Custom
+            </button>
           </div>
-          <div>
-            <label htmlFor="rest-seconds" className="block text-sm text-muted-foreground mb-1">
-              Custom (0-600 seconds)
-            </label>
-            <input
-              id="rest-seconds"
-              type="number"
-              min={0}
-              max={600}
-              value={defaultRestSeconds}
-              onChange={(e) => setDefaultRestSeconds(Number(e.target.value) || 0)}
-              className="w-full max-w-[120px] px-3 py-2.5 rounded-lg bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+          {isCustomRest && (
+            <div className="pt-1">
+              <label htmlFor="rest-seconds" className="block text-sm text-muted-foreground mb-1">
+                Custom rest (0–600 seconds)
+              </label>
+              <input
+                id="rest-seconds"
+                type="number"
+                min={0}
+                max={600}
+                value={defaultRestSeconds}
+                onChange={(e) =>
+                  setDefaultRestSeconds(Math.min(600, Math.max(0, Number(e.target.value) || 0)))
+                }
+                className="w-full max-w-[120px] px-3 py-2.5 rounded-lg bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                inputMode="numeric"
+              />
+            </div>
+          )}
         </div>
       </section>
 
