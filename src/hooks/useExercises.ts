@@ -133,6 +133,16 @@ export function useExercises() {
   }, [])
 
   const remove = useCallback(async (id: string) => {
+    // Clear references so the delete can succeed. History keeps the set data; exercise shows as unknown.
+    const { error: sessionErr } = await supabase
+      .from('session_sets')
+      .update({ exercise_id: null })
+      .eq('exercise_id', id)
+    if (sessionErr) throw sessionErr
+
+    const { error: teErr } = await supabase.from('template_exercises').delete().eq('exercise_id', id)
+    if (teErr) throw teErr
+
     const { error: e } = await supabase.from('exercises').delete().eq('id', id)
     if (e) throw e
     setExercises((prev) => prev.filter((ex) => ex.id !== id))

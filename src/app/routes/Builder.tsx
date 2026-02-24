@@ -103,7 +103,6 @@ export function Builder() {
         <ul className="mt-4 space-y-2">
           {templates.map((t) => {
             const { exerciseCount, movement, muscles, equipment } = templateSummary(t)
-            const hasMeta = exerciseCount > 0 && (movement.length > 0 || muscles.length > 0 || equipment.length > 0)
             return (
               <li
                 key={t.id}
@@ -117,16 +116,26 @@ export function Builder() {
                   onClick={() => navigate(`/builder/${t.id}`)}
                   className="flex-1 flex flex-row items-center gap-2 p-3 text-left min-w-0 rounded-l-lg"
                 >
-                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <div className="flex-1 min-w-0 flex flex-col">
                     <span className="font-medium text-foreground truncate">{t.name}</span>
-                    {hasMeta && (
-                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                        <span>{exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}</span>
-                        {movement.length > 0 && <span>{movement.join(', ')}</span>}
-                        {muscles.length > 0 && <span>{muscles.join(', ')}</span>}
-                        {equipment.length > 0 && <span>{equipment.join(', ')}</span>}
+                    <dl className="mt-1.5 space-y-0.5 text-sm">
+                      <div className="flex min-w-0 items-baseline gap-x-3">
+                        <dt className="w-20 shrink-0 text-muted-foreground text-xs font-medium uppercase tracking-wide">Exercises</dt>
+                        <dd className="min-w-0 truncate text-foreground">{exerciseCount}</dd>
                       </div>
-                    )}
+                      <div className="flex min-w-0 items-baseline gap-x-3">
+                        <dt className="w-20 shrink-0 text-muted-foreground text-xs font-medium uppercase tracking-wide">Movement</dt>
+                        <dd className="min-w-0 truncate text-foreground">{movement.length > 0 ? movement.join(', ') : '—'}</dd>
+                      </div>
+                      <div className="flex min-w-0 items-baseline gap-x-3">
+                        <dt className="w-20 shrink-0 text-muted-foreground text-xs font-medium uppercase tracking-wide">Primary</dt>
+                        <dd className="min-w-0 truncate text-foreground">{muscles.length > 0 ? muscles.join(', ') : '—'}</dd>
+                      </div>
+                      <div className="flex min-w-0 items-baseline gap-x-3">
+                        <dt className="w-20 shrink-0 text-muted-foreground text-xs font-medium uppercase tracking-wide">Equipment</dt>
+                        <dd className="min-w-0 truncate text-foreground">{equipment.length > 0 ? equipment.join(', ') : '—'}</dd>
+                      </div>
+                    </dl>
                   </div>
                 </button>
                 <div className="relative shrink-0" ref={menuOpenId === t.id ? menuRef : null}>

@@ -144,7 +144,7 @@ export function StartWorkoutSheet({ open, onClose }: StartWorkoutSheetProps) {
             </>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground mb-3">No workout scheduled for today. Pick a template to start now.</p>
+              <p className="text-sm text-muted-foreground mb-3">No workout scheduled for today. Pick an existing workout or create a new workout to start.</p>
               {templates.length === 0 ? (
                 <EmptyState
                   message="No templates yet"
@@ -179,7 +179,7 @@ export function StartWorkoutSheet({ open, onClose }: StartWorkoutSheetProps) {
               className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors min-h-[44px]"
             >
               <Plus className="w-4 h-4" aria-hidden />
-              Create new template
+              Create new workout
             </button>
           )}
         </div>

@@ -228,16 +228,6 @@ export function Dashboard() {
                 </div>
               )}
 
-              {(completedTodayList.length === 0 && notCompletedTodayList.length === 0) && (
-                <button
-                  type="button"
-                  onClick={openScheduleModal}
-                  className="w-full py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors min-h-[44px]"
-                >
-                  Schedule for another day
-                </button>
-              )}
-
               <Link
                 to="/calendar"
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground min-h-[44px]"
@@ -297,7 +287,7 @@ export function Dashboard() {
                   className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors min-h-[44px]"
                 >
                   <Plus className="w-4 h-4" aria-hidden />
-                  Create new template
+                  Create new workout
                 </Link>
                 <button
                   type="button"

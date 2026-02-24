@@ -79,7 +79,7 @@ export function useWorkoutHistory() {
 
 export interface SessionSetWithExercise {
   id: string
-  exercise_id: string
+  exercise_id: string | null
   set_number: number
   actual_reps: number | null
   actual_duration_seconds: number | null

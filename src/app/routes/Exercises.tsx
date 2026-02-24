@@ -36,13 +36,14 @@ const defaultForm: ExerciseInsert = {
 type FormState = ExerciseInsert
 
 function formToPayload(form: FormState): ExerciseInsert {
+  const isBodyweight = form.equipment === 'Bodyweight' || form.is_bodyweight
   return {
     name: form.name.trim(),
     primary_muscle: form.primary_muscle.trim(),
     secondary_muscles: form.secondary_muscles,
     movement_pattern: form.movement_pattern,
     equipment: form.equipment,
-    is_bodyweight: form.is_bodyweight,
+    is_bodyweight: isBodyweight,
     notes: form.notes?.trim() || null,
     type: form.type ?? 'reps',
   }
@@ -53,10 +54,11 @@ type OpenDropdown = 'primary' | 'secondary' | 'movement' | 'equipment' | null
 export function Exercises() {
   const { exercises, loading, error, create, update, remove } = useExercises()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [addMode, setAddMode] = useState<'choice' | 'create' | 'duplicate' | null>(null)
+  const [addMode, setAddMode] = useState<'create' | 'duplicate' | null>(null)
   const [form, setForm] = useState<FormState>({ ...defaultForm })
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -83,8 +85,7 @@ export function Exercises() {
   }, [menuOpenId])
 
   function openAdd() {
-    setAddMode('choice')
-    setForm({ ...defaultForm })
+    startCreateNew()
   }
 
   function closeAddModal() {
@@ -162,11 +163,19 @@ export function Exercises() {
 
   async function handleDelete(id: string) {
     if (!window.confirm('Delete this exercise?')) return
+    setDeleteError(null)
     try {
       await remove(id)
       if (editingId === id) cancelForm()
     } catch (err) {
       console.error(err)
+      const msg =
+        err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23503'
+          ? 'Cannot delete: this exercise is used in a workout or in history. Remove it from templates first.'
+          : err instanceof Error
+            ? err.message
+            : 'Could not delete exercise.'
+      setDeleteError(msg)
     }
   }
 
@@ -189,214 +198,10 @@ export function Exercises() {
       {error && (
         <p className="mt-4 text-sm text-red-500">Failed to load exercises. Try refreshing.</p>
       )}
-
-      {/* Add flow: choice modal */}
-      {addMode === 'choice' && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-black/60 sm:bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add exercise"
-        >
-          <div
-            className="w-full max-w-md bg-card border-t sm:border border-border rounded-t-2xl sm:rounded-2xl p-4 pb-8 safe-area-pb"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="font-display text-lg font-semibold text-foreground mb-3">Add exercise</h2>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={openFromLibrary}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left"
-              >
-                <Library className="w-5 h-5 text-muted-foreground shrink-0" />
-                <span className="font-medium">From exercise library</span>
-              </button>
-              <button
-                type="button"
-                onClick={openCreateNew}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left"
-              >
-                <FilePlus className="w-5 h-5 text-muted-foreground shrink-0" />
-                <span className="font-medium">Create new</span>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={closeAddModal}
-              className="mt-4 w-full py-2.5 text-sm text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Add flow: pick from system library */}
-      {addMode === 'library' && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-background"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Pick from library"
-        >
-          <div className="p-4 border-b border-border flex flex-col gap-3 shrink-0">
-            <div className="flex items-center gap-2">
-              <input
-                type="search"
-                placeholder="Search library…"
-                value={libraryQuery}
-                onChange={(e) => setLibraryQuery(e.target.value)}
-                className={cn(inputClass, 'flex-1')}
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setAddMode('choice')}
-                className="px-3 py-2 rounded-lg border border-border min-h-[44px]"
-              >
-                Back
-              </button>
-            </div>
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-              {EQUIPMENT_OPTIONS.map((eq) => (
-                <button
-                  key={eq}
-                  type="button"
-                  onClick={() => toggleEquipment(eq)}
-                  className={cn(
-                    'shrink-0 px-3 py-2 rounded-lg border text-sm font-medium min-h-[44px] transition-colors',
-                    equipmentFilter.has(eq)
-                      ? 'bg-accent text-primary-foreground border-accent'
-                      : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-accent/50'
-                  )}
-                >
-                  {eq}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-              {MUSCLE_GROUP_LABELS.map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => toggleMuscleGroup(label)}
-                  className={cn(
-                    'shrink-0 px-3 py-2 rounded-lg border text-sm font-medium min-h-[44px] transition-colors',
-                    muscleGroupFilter.has(label)
-                      ? 'bg-accent text-primary-foreground border-accent'
-                      : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-accent/50'
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto p-4 pb-20 safe-area-pb">
-            {systemExercises.length === 0 ? (
-              <EmptyState
-                message="No system exercises yet"
-                description="Create a new exercise to get started."
-              />
-            ) : groupedByPattern.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No matches.</p>
-            ) : (
-              <div className="space-y-1">
-                {groupedByPattern.map(({ pattern, exercises }) => {
-                  const isExpanded = expandedGroups.has(pattern)
-                  const sectionId = `library-section-${pattern}`
-                  return (
-                    <div key={pattern} role="region" aria-labelledby={`${sectionId}-heading`}>
-                      <button
-                        type="button"
-                        id={`${sectionId}-heading`}
-                        aria-expanded={isExpanded}
-                        aria-controls={sectionId}
-                        onClick={() => toggleGroup(pattern)}
-                        className="w-full flex items-center gap-2 py-3 px-2 rounded-lg hover:bg-muted/50 min-h-[44px] text-left"
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />
-                        )}
-                        <span className="font-display font-semibold text-foreground">
-                          {pattern} ({exercises.length})
-                        </span>
-                      </button>
-                      {isExpanded && (
-                        <ul id={sectionId} className="space-y-2 pl-7 pr-0 pt-1 pb-2">
-                          {exercises.map((ex) => (
-                            <li key={ex.id}>
-                              <button
-                                type="button"
-                                onClick={() => handleCloneFromSystem(ex)}
-                                disabled={cloningId !== null}
-                                className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-accent/50 min-h-[44px] disabled:opacity-50 flex items-center gap-3"
-                              >
-                                {ex.image_url ? (
-                                  <img
-                                    src={ex.image_url}
-                                    alt=""
-                                    className="w-12 h-12 rounded-lg object-cover shrink-0 bg-muted"
-                                  />
-                                ) : (
-                                  <span className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center">
-                                    <Dumbbell className="w-5 h-5 text-muted-foreground" aria-hidden />
-                                  </span>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-medium text-foreground">{ex.name}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {ex.primary_muscle}
-                                    {ex.movement_pattern ? ` · ${ex.movement_pattern}` : ''}
-                                    {ex.equipment ? ` · ${ex.equipment}` : ''}
-                                  </p>
-                                </div>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Add flow: choice (create vs duplicate) */}
-      {addMode === 'choice' && (
-        <div className="mt-4 p-4 rounded-lg border border-border bg-card space-y-2">
-          <p className="text-sm text-muted-foreground mb-2">Add exercise</p>
-          <button
-            type="button"
-            onClick={startCreateNew}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left font-medium"
-          >
-            <Plus className="w-5 h-5 text-muted-foreground shrink-0" />
-            Create new
-          </button>
-          <button
-            type="button"
-            onClick={() => setAddMode('duplicate')}
-            disabled={exercises.length === 0}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-background hover:border-accent/50 min-h-[48px] text-left font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Copy className="w-5 h-5 text-muted-foreground shrink-0" />
-            Duplicate from existing
-          </button>
-          <button
-            type="button"
-            onClick={closeAddModal}
-            className="mt-2 w-full py-2.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            Cancel
-          </button>
-        </div>
+      {deleteError && (
+        <p className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm" role="alert">
+          {deleteError}
+        </p>
       )}
 
       {/* Add flow: pick exercise to duplicate */}
@@ -406,7 +211,7 @@ export function Exercises() {
             <p className="text-sm text-muted-foreground">Choose an exercise to duplicate</p>
             <button
               type="button"
-              onClick={() => setAddMode('choice')}
+              onClick={closeAddModal}
               className="text-sm text-muted-foreground hover:text-foreground"
             >
               Back
@@ -471,187 +276,189 @@ export function Exercises() {
           </div>
           <div ref={dropdownRef}>
             <div>
-            <label className="block text-sm text-muted-foreground mb-1">Primary muscle</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'primary' ? null : 'primary')}
-                className={selectTriggerClass}
-                aria-expanded={openDropdown === 'primary'}
-                aria-haspopup="listbox"
-              >
-                <span>
-                  {!PRIMARY_MUSCLES.includes(form.primary_muscle as (typeof PRIMARY_MUSCLES)[number]) &&
-                  form.primary_muscle
-                    ? form.primary_muscle
-                    : form.primary_muscle || 'Select'}
-                </span>
-                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'primary' && 'rotate-180')} />
-              </button>
-              {openDropdown === 'primary' && (
-                <ul className={selectPanelClass} role="listbox">
-                  {!PRIMARY_MUSCLES.includes(form.primary_muscle as (typeof PRIMARY_MUSCLES)[number]) &&
-                    form.primary_muscle && (
-                      <li
-                        role="option"
-                        aria-selected={true}
-                        className={cn(selectOptionClass, 'bg-muted/50')}
-                        onClick={() => setOpenDropdown(null)}
-                      >
-                        {form.primary_muscle}
-                        <Check className="w-4 h-4 text-accent shrink-0" />
-                      </li>
-                    )}
-                  {PRIMARY_MUSCLES.map((m) => (
-                    <li
-                      key={m}
-                      role="option"
-                      aria-selected={form.primary_muscle === m}
-                      className={cn(selectOptionClass, form.primary_muscle === m && 'bg-muted/50')}
-                      onClick={() => {
-                        setForm((f) => ({ ...f, primary_muscle: m }))
-                        setOpenDropdown(null)
-                      }}
-                    >
-                      {m}
-                      {form.primary_muscle === m && <Check className="w-4 h-4 text-accent shrink-0" />}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm text-muted-foreground mb-1">Secondary muscles</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'secondary' ? null : 'secondary')}
-                className={selectTriggerClass}
-                aria-expanded={openDropdown === 'secondary'}
-                aria-haspopup="listbox"
-              >
-                <span className="text-muted-foreground">
-                  {form.secondary_muscles.length === 0 ? 'Add secondary muscles' : 'Add or remove'}
-                </span>
-                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'secondary' && 'rotate-180')} />
-              </button>
-              {openDropdown === 'secondary' && (
-                <ul className={selectPanelClass} role="listbox" aria-multiselectable="true">
-                  {PRIMARY_MUSCLES.map((m) => (
-                    <li
-                      key={m}
-                      role="option"
-                      aria-selected={form.secondary_muscles.includes(m)}
-                      className={cn(selectOptionClass, form.secondary_muscles.includes(m) && 'bg-muted/50')}
-                      onClick={() => toggleSecondaryMuscle(m)}
-                    >
-                      {m}
-                      {form.secondary_muscles.includes(m) && <Check className="w-4 h-4 text-accent shrink-0" />}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            {form.secondary_muscles.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {form.secondary_muscles.map((m) => (
-                  <span
-                    key={m}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border text-sm text-foreground"
-                  >
-                    {m}
-                    <button
-                      type="button"
-                      onClick={() => toggleSecondaryMuscle(m)}
-                      className="p-0.5 rounded-full hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground min-w-[24px] min-h-[24px] flex items-center justify-center"
-                      aria-label={`Remove ${m}`}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+              <label className="block text-sm text-muted-foreground mb-1">Primary muscle</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'primary' ? null : 'primary')}
+                  className={selectTriggerClass}
+                  aria-expanded={openDropdown === 'primary'}
+                  aria-haspopup="listbox"
+                >
+                  <span>
+                    {!PRIMARY_MUSCLES.includes(form.primary_muscle as (typeof PRIMARY_MUSCLES)[number]) &&
+                      form.primary_muscle
+                      ? form.primary_muscle
+                      : form.primary_muscle || 'Select'}
                   </span>
-                ))}
+                  <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'primary' && 'rotate-180')} />
+                </button>
+                {openDropdown === 'primary' && (
+                  <ul className={selectPanelClass} role="listbox">
+                    {!PRIMARY_MUSCLES.includes(form.primary_muscle as (typeof PRIMARY_MUSCLES)[number]) &&
+                      form.primary_muscle && (
+                        <li
+                          role="option"
+                          aria-selected={true}
+                          className={cn(selectOptionClass, 'bg-muted/50')}
+                          onClick={() => setOpenDropdown(null)}
+                        >
+                          {form.primary_muscle}
+                          <Check className="w-4 h-4 text-accent shrink-0" />
+                        </li>
+                      )}
+                    {PRIMARY_MUSCLES.map((m) => (
+                      <li
+                        key={m}
+                        role="option"
+                        aria-selected={form.primary_muscle === m}
+                        className={cn(selectOptionClass, form.primary_muscle === m && 'bg-muted/50')}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, primary_muscle: m }))
+                          setOpenDropdown(null)
+                        }}
+                      >
+                        {m}
+                        {form.primary_muscle === m && <Check className="w-4 h-4 text-accent shrink-0" />}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm text-muted-foreground mb-1">Movement pattern</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'movement' ? null : 'movement')}
-                className={selectTriggerClass}
-                aria-expanded={openDropdown === 'movement'}
-                aria-haspopup="listbox"
-              >
-                <span>{form.movement_pattern}</span>
-                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'movement' && 'rotate-180')} />
-              </button>
-              {openDropdown === 'movement' && (
-                <ul className={selectPanelClass} role="listbox">
-                  {MOVEMENT_PATTERNS.map((p) => (
-                    <li
-                      key={p}
-                      role="option"
-                      aria-selected={form.movement_pattern === p}
-                      className={cn(selectOptionClass, form.movement_pattern === p && 'bg-muted/50')}
-                      onClick={() => {
-                        setForm((f) => ({ ...f, movement_pattern: p }))
-                        setOpenDropdown(null)
-                      }}
+            </div>
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Secondary muscles</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'secondary' ? null : 'secondary')}
+                  className={selectTriggerClass}
+                  aria-expanded={openDropdown === 'secondary'}
+                  aria-haspopup="listbox"
+                >
+                  <span className="text-muted-foreground">
+                    {form.secondary_muscles.length === 0 ? 'Add secondary muscles' : 'Add or remove'}
+                  </span>
+                  <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'secondary' && 'rotate-180')} />
+                </button>
+                {openDropdown === 'secondary' && (
+                  <ul className={selectPanelClass} role="listbox" aria-multiselectable="true">
+                    {PRIMARY_MUSCLES.map((m) => (
+                      <li
+                        key={m}
+                        role="option"
+                        aria-selected={form.secondary_muscles.includes(m)}
+                        className={cn(selectOptionClass, form.secondary_muscles.includes(m) && 'bg-muted/50')}
+                        onClick={() => toggleSecondaryMuscle(m)}
+                      >
+                        {m}
+                        {form.secondary_muscles.includes(m) && <Check className="w-4 h-4 text-accent shrink-0" />}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {form.secondary_muscles.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {form.secondary_muscles.map((m) => (
+                    <span
+                      key={m}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border text-sm text-foreground"
                     >
-                      {p}
-                      {form.movement_pattern === p && <Check className="w-4 h-4 text-accent shrink-0" />}
-                    </li>
+                      {m}
+                      <button
+                        type="button"
+                        onClick={() => toggleSecondaryMuscle(m)}
+                        className="p-0.5 rounded-full hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground min-w-[24px] min-h-[24px] flex items-center justify-center"
+                        aria-label={`Remove ${m}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
-          </div>
-          <div ref={openDropdown === 'equipment' ? dropdownRef : undefined}>
-            <label className="block text-sm text-muted-foreground mb-1">Equipment</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'equipment' ? null : 'equipment')}
-                className={selectTriggerClass}
-                aria-expanded={openDropdown === 'equipment'}
-                aria-haspopup="listbox"
-              >
-                <span>{form.equipment}</span>
-                <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'equipment' && 'rotate-180')} />
-              </button>
-              {openDropdown === 'equipment' && (
-                <ul className={selectPanelClass} role="listbox">
-                  {EQUIPMENT_OPTIONS.map((eq) => (
-                    <li
-                      key={eq}
-                      role="option"
-                      aria-selected={form.equipment === eq}
-                      className={cn(selectOptionClass, form.equipment === eq && 'bg-muted/50')}
-                      onClick={() => {
-                        setForm((f) => ({ ...f, equipment: eq }))
-                        setOpenDropdown(null)
-                      }}
-                    >
-                      {eq}
-                      {form.equipment === eq && <Check className="w-4 h-4 text-accent shrink-0" />}
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Movement pattern</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'movement' ? null : 'movement')}
+                  className={selectTriggerClass}
+                  aria-expanded={openDropdown === 'movement'}
+                  aria-haspopup="listbox"
+                >
+                  <span>{form.movement_pattern}</span>
+                  <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'movement' && 'rotate-180')} />
+                </button>
+                {openDropdown === 'movement' && (
+                  <ul className={selectPanelClass} role="listbox">
+                    {MOVEMENT_PATTERNS.map((p) => (
+                      <li
+                        key={p}
+                        role="option"
+                        aria-selected={form.movement_pattern === p}
+                        className={cn(selectOptionClass, form.movement_pattern === p && 'bg-muted/50')}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, movement_pattern: p }))
+                          setOpenDropdown(null)
+                        }}
+                      >
+                        {p}
+                        {form.movement_pattern === p && <Check className="w-4 h-4 text-accent shrink-0" />}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <div ref={openDropdown === 'equipment' ? dropdownRef : undefined}>
+              <label className="block text-sm text-muted-foreground mb-1">Equipment</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'equipment' ? null : 'equipment')}
+                  className={selectTriggerClass}
+                  aria-expanded={openDropdown === 'equipment'}
+                  aria-haspopup="listbox"
+                >
+                  <span>{form.equipment}</span>
+                  <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'equipment' && 'rotate-180')} />
+                </button>
+                {openDropdown === 'equipment' && (
+                  <ul className={selectPanelClass} role="listbox">
+                    {EQUIPMENT_OPTIONS.map((eq) => (
+                      <li
+                        key={eq}
+                        role="option"
+                        aria-selected={form.equipment === eq}
+                        className={cn(selectOptionClass, form.equipment === eq && 'bg-muted/50')}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, equipment: eq }))
+                          setOpenDropdown(null)
+                        }}
+                      >
+                        {eq}
+                        {form.equipment === eq && <Check className="w-4 h-4 text-accent shrink-0" />}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.is_bodyweight}
-              onChange={(e) => setForm((f) => ({ ...f, is_bodyweight: e.target.checked }))}
-              className="rounded border-border text-accent focus:ring-accent"
-            />
-            <span className="text-sm">Bodyweight (no weight logged in session)</span>
-          </label>
+          {form.equipment !== 'Bodyweight' && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_bodyweight}
+                onChange={(e) => setForm((f) => ({ ...f, is_bodyweight: e.target.checked }))}
+                className="rounded border-border text-accent focus:ring-accent"
+              />
+              <span className="text-sm">Bodyweight (no weight logged in session)</span>
+            </label>
+          )}
           <textarea
             placeholder="Notes"
             value={form.notes ?? ''}
@@ -704,11 +511,20 @@ export function Exercises() {
               )}
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-foreground truncate">{ex.name}</p>
-                <p className="text-sm text-muted-foreground truncate">
-                  {[ex.primary_muscle, ex.movement_pattern, ex.type === 'time' ? 'Time' : null]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
+                <dl className="mt-1.5 space-y-0.5 text-sm">
+                  <div className="flex min-w-0 items-baseline gap-x-3">
+                    <dt className="w-20 shrink-0 text-muted-foreground text-xs font-medium uppercase tracking-wide">Primary</dt>
+                    <dd className="min-w-0 truncate text-foreground">{ex.primary_muscle}</dd>
+                  </div>
+                  <div className="flex min-w-0 items-baseline gap-x-3">
+                    <dt className="w-20 shrink-0 text-muted-foreground text-xs font-medium uppercase tracking-wide">Equipment</dt>
+                    <dd className="min-w-0 truncate text-foreground">{ex.equipment}</dd>
+                  </div>
+                  <div className="flex min-w-0 items-baseline gap-x-3">
+                    <dt className="w-20 shrink-0 text-muted-foreground text-xs font-medium uppercase tracking-wide">Type</dt>
+                    <dd className="min-w-0 truncate text-foreground">{ex.type === 'time' ? 'Time' : 'Reps'}</dd>
+                  </div>
+                </dl>
               </div>
               <div className="relative shrink-0" ref={menuOpenId === ex.id ? menuRef : null}>
                 <button

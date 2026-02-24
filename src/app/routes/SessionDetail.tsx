@@ -51,12 +51,12 @@ export function SessionDetail() {
   }
 
   const setsByExercise = detail.sets.reduce<Record<string, typeof detail.sets>>((acc, set) => {
-    const key = set.exercise_id
+    const key = set.exercise_id ?? 'deleted'
     if (!acc[key]) acc[key] = []
     acc[key].push(set)
     return acc
   }, {})
-  const exerciseIds = [...new Set(detail.sets.map((s) => s.exercise_id))]
+  const exerciseIds = [...new Set(detail.sets.map((s) => s.exercise_id ?? 'deleted'))]
 
   return (
     <div className="p-4 pb-20">
@@ -81,7 +81,7 @@ export function SessionDetail() {
           const muscleGroup = first?.exercises?.primary_muscle
           const isTime = first?.exercises?.type === 'time'
           return (
-            <div key={exerciseId} className="rounded-lg border border-border bg-card overflow-hidden">
+            <div key={exerciseId ?? 'deleted'} className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="p-3 border-b border-border">
                 <p className="font-medium text-foreground">{name}</p>
                 {muscleGroup && (

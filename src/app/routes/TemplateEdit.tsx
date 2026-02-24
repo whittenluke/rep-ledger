@@ -82,25 +82,27 @@ export function TemplateEdit() {
     })
   }
 
-  const systemFilteredBySearch =
+  const allExercises: Exercise[] = [...exercises, ...systemExercises]
+
+  const filteredBySearch =
     pickerQuery.trim() === ''
-      ? systemExercises
-      : systemExercises.filter(
+      ? allExercises
+      : allExercises.filter(
           (ex) =>
             ex.name.toLowerCase().includes(pickerQuery.toLowerCase()) ||
             (ex.primary_muscle?.toLowerCase().includes(pickerQuery.toLowerCase()) ?? false) ||
             (ex.secondary_muscles ?? []).some((m) => m.toLowerCase().includes(pickerQuery.toLowerCase()))
         )
 
-  const systemFilteredByEquipment =
+  const filteredByEquipment =
     equipmentFilter.size === 0
-      ? systemFilteredBySearch
-      : systemFilteredBySearch.filter((ex) => equipmentFilter.has(ex.equipment))
+      ? filteredBySearch
+      : filteredBySearch.filter((ex) => equipmentFilter.has(ex.equipment))
 
-  const systemFilteredByMuscleGroup =
+  const filteredByMuscleGroup =
     muscleGroupFilter.size === 0
-      ? systemFilteredByEquipment
-      : systemFilteredByEquipment.filter((ex) => {
+      ? filteredByEquipment
+      : filteredByEquipment.filter((ex) => {
           for (const label of muscleGroupFilter) {
             const muscles = new Set(MUSCLE_GROUP_TO_PRIMARY_MUSCLES[label])
             const involves =
@@ -111,10 +113,10 @@ export function TemplateEdit() {
           return true
         })
 
-  const systemGroupedByPattern: { pattern: MovementPattern; exercises: Exercise[] }[] = MOVEMENT_PATTERNS.map(
+  const groupedByPattern: { pattern: MovementPattern; exercises: Exercise[] }[] = MOVEMENT_PATTERNS.map(
     (pattern) => ({
       pattern,
-      exercises: systemFilteredByMuscleGroup.filter((ex) => ex.movement_pattern === pattern),
+      exercises: filteredByMuscleGroup.filter((ex) => ex.movement_pattern === pattern),
     })
   ).filter((g) => g.exercises.length > 0)
 
@@ -149,12 +151,12 @@ export function TemplateEdit() {
     [id, add]
   )
 
-  const handleAddFromSystem = useCallback(
-    async (systemEx: (typeof systemExercises)[number]) => {
+  const handleAddFromPicker = useCallback(
+    async (ex: Exercise) => {
       if (!id) return
       try {
-        setAddingSystemId(systemEx.id)
-        await handleAddExercise(systemEx.id, systemEx.type ?? 'reps')
+        setAddingSystemId(ex.id)
+        await handleAddExercise(ex.id, ex.type ?? 'reps')
       } catch (err) {
         console.error(err)
       } finally {
@@ -515,14 +517,14 @@ export function TemplateEdit() {
           </div>
           <div className="flex-1 overflow-auto p-4 pb-20 safe-area-pb space-y-4">
             <section>
-              <h3 className="text-sm font-medium text-muted-foreground mb-2">System library</h3>
-              {systemExercises.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No system exercises available.</p>
-              ) : systemGroupedByPattern.length === 0 ? (
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Exercises</h3>
+              {allExercises.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No exercises yet. Create one in My Exercises first.</p>
+              ) : groupedByPattern.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No matches.</p>
               ) : (
                 <div className="space-y-1">
-                  {systemGroupedByPattern.map(({ pattern, exercises: patternExercises }) => {
+                  {groupedByPattern.map(({ pattern, exercises: patternExercises }) => {
                     const isExpanded = expandedGroups.has(pattern)
                     const sectionId = `template-picker-${pattern}`
                     return (
@@ -546,39 +548,54 @@ export function TemplateEdit() {
                         </button>
                         {isExpanded && (
                           <ul id={sectionId} className="space-y-2 pl-7 pr-0 pt-1 pb-2">
-                            {patternExercises.map((ex) => (
-                              <li key={ex.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddFromSystem(ex)}
-                                  disabled={addingSystemId !== null}
-                                  className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-accent/50 min-h-[44px] disabled:opacity-50 flex items-center gap-3"
-                                >
-                                  {ex.image_url ? (
-                                    <img
-                                      src={ex.image_url}
-                                      alt=""
-                                      className="w-12 h-12 rounded-lg object-cover shrink-0 bg-muted"
-                                    />
-                                  ) : (
-                                    <span className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center">
-                                      <Dumbbell className="w-5 h-5 text-muted-foreground" aria-hidden />
-                                    </span>
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-medium text-foreground">{ex.name}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {ex.primary_muscle}
-                                      {ex.movement_pattern ? ` · ${ex.movement_pattern}` : ''}
-                                      {ex.equipment ? ` · ${ex.equipment}` : ''}
-                                    </p>
-                                    {addingSystemId === ex.id && (
-                                      <p className="text-xs text-muted-foreground mt-1">Adding…</p>
+                            {patternExercises.map((ex) => {
+                              const isUserExercise = ex.user_id != null
+                              return (
+                                <li key={ex.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddFromPicker(ex)}
+                                    disabled={addingSystemId !== null}
+                                    className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-accent/50 min-h-[44px] disabled:opacity-50 flex items-center gap-3"
+                                  >
+                                    {ex.image_url ? (
+                                      <img
+                                        src={ex.image_url}
+                                        alt=""
+                                        className="w-12 h-12 rounded-lg object-cover shrink-0 bg-muted"
+                                      />
+                                    ) : (
+                                      <span className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                                        <Dumbbell className="w-5 h-5 text-muted-foreground" aria-hidden />
+                                      </span>
                                     )}
-                                  </div>
-                                </button>
-                              </li>
-                            ))}
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-medium text-foreground">{ex.name}</p>
+                                        <span
+                                          className={cn(
+                                            'text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded',
+                                            isUserExercise
+                                              ? 'bg-accent/20 text-accent'
+                                              : 'bg-muted text-muted-foreground'
+                                          )}
+                                        >
+                                          {isUserExercise ? 'My' : 'System'}
+                                        </span>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground">
+                                        {ex.primary_muscle}
+                                        {ex.movement_pattern ? ` · ${ex.movement_pattern}` : ''}
+                                        {ex.equipment ? ` · ${ex.equipment}` : ''}
+                                      </p>
+                                      {addingSystemId === ex.id && (
+                                        <p className="text-xs text-muted-foreground mt-1">Adding…</p>
+                                      )}
+                                    </div>
+                                  </button>
+                                </li>
+                              )
+                            })}
                           </ul>
                         )}
                       </div>
