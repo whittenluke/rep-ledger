@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 import { Download, LogOut } from 'lucide-react'
 
 const REST_PRESETS = [0, 30, 60, 90, 120, 180] as const
-const REST_PRESET_SET = new Set(REST_PRESETS)
 
 export function Settings() {
   const navigate = useNavigate()

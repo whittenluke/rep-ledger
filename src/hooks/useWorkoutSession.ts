@@ -65,11 +65,12 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
     } = await supabase.auth.getUser()
     if (authError || !user) throw new Error('Not authenticated')
     if (!scheduledWorkoutId) throw new Error('No scheduled workout')
+    const swId = scheduledWorkoutId
 
     const { data: scheduled } = await supabase
       .from('scheduled_workouts')
       .select('id, template_id, workout_templates(name)')
-      .eq('id', scheduledWorkoutId)
+        .eq('id', swId)
       .single()
 
     if (!scheduled?.template_id) throw new Error('Scheduled workout or template not found')
@@ -77,20 +78,20 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
     const templateId = scheduled.template_id as string
     setTemplateName((scheduled.workout_templates as unknown as { name: string } | null)?.name ?? 'Workout')
 
-    let sid = storedSessionId && storedScheduledId === scheduledWorkoutId ? storedSessionId : null
+    let sid: string | null = storedSessionId && storedScheduledId === swId ? storedSessionId : null
     if (!sid) {
       const { data: newSession, error: insertErr } = await supabase
         .from('workout_sessions')
         .insert({
           user_id: user.id,
-          scheduled_workout_id: scheduledWorkoutId,
+          scheduled_workout_id: swId,
           template_id: templateId,
         })
         .select('id, started_at')
         .single()
       if (insertErr) throw insertErr
-      sid = newSession!.id
-      setSession(sid, (newSession!.started_at as string) ?? new Date().toISOString(), scheduledWorkoutId!)
+      sid = newSession!.id as string
+      setSession(sid, (newSession!.started_at as string) ?? new Date().toISOString(), swId)
     }
 
     setSessionIdState(sid)
@@ -104,7 +105,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
       .eq('template_id', templateId)
       .order('position')
     if (e) throw e
-    const rows = (teData ?? []) as Array<{
+    const rows = (teData ?? []) as unknown as Array<{
       id: string
       exercise_id: string
       position: number
