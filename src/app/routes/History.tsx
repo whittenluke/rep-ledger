@@ -27,7 +27,7 @@ export function History() {
   const { sessions, loading, error, refetch } = useWorkoutHistory()
 
   return (
-    <div className="p-4 pb-20">
+    <div className="flex flex-col min-h-[calc(100dvh-80px)] p-4 pb-20">
       <PageHeader title="History" />
 
       {error && (
@@ -46,10 +46,12 @@ export function History() {
       {loading ? (
         <LoadingState message="Loading history…" />
       ) : sessions.length === 0 ? (
-        <EmptyState
-          message="No completed workouts yet"
-          description="Finish a workout from the calendar or dashboard to see it here."
-        />
+        <div className="flex-1 flex flex-col justify-center">
+          <EmptyState
+            message="No completed workouts yet"
+            description="Finish a workout from the calendar or dashboard to see it here."
+          />
+        </div>
       ) : (
         <ul className="mt-4 space-y-2">
           {sessions.map((s) => (

@@ -122,8 +122,16 @@ export function Dashboard() {
     }
   }
 
+  const isOnboardingOnly = dashboardState === 'onboarding' && !hasInProgressSession
+
   return (
-    <div className="p-4 pb-20 space-y-6">
+    <div
+      className={
+        isOnboardingOnly
+          ? 'h-[calc(100dvh-80px)] overflow-hidden flex flex-col p-4'
+          : 'p-4 pb-20 space-y-6'
+      }
+    >
       {templatesLoading ? (
         <LoadingState message="Loading…" />
       ) : (
@@ -152,7 +160,7 @@ export function Dashboard() {
           )}
 
           {dashboardState === 'onboarding' && (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6">
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 min-h-0">
               <img
                 src="/rep-ledger-logo.svg"
                 alt="Rep Ledger"
