@@ -52,7 +52,7 @@ function formToPayload(form: FormState): ExerciseInsert {
 type OpenDropdown = 'primary' | 'secondary' | 'movement' | 'equipment' | null
 
 export function Exercises() {
-  const { exercises, loading, error, create, update, remove } = useExercises()
+  const { exercises, loading, error, refetch, create, update, remove } = useExercises()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addMode, setAddMode] = useState<'create' | 'duplicate' | null>(null)
   const [form, setForm] = useState<FormState>({ ...defaultForm })
@@ -196,7 +196,16 @@ export function Exercises() {
       </div>
 
       {error && (
-        <p className="mt-4 text-sm text-red-500">Failed to load exercises. Try refreshing.</p>
+        <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex flex-wrap items-center gap-2" role="alert">
+          <span>Failed to load exercises.</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="font-medium underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </div>
       )}
       {deleteError && (
         <p className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm" role="alert">

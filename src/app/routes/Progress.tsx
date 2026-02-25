@@ -9,6 +9,7 @@ import { VolumeChart } from '@/components/charts/VolumeChart'
 import { WeightProgressChart } from '@/components/charts/WeightProgressChart'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 
 export function Progress() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
@@ -25,6 +26,7 @@ export function Progress() {
     volumeByTemplate,
     loading,
     error,
+    refetch,
   } = useProgressAnalytics()
 
   const { templates } = useWorkoutTemplates()
@@ -55,7 +57,19 @@ export function Progress() {
     return (
       <div className="p-4 pb-20">
         <PageHeader title="Progress" />
-        <p className="mt-4 text-red-500">Failed to load analytics.</p>
+        <ErrorState
+          message="Failed to load analytics"
+          description="Check your connection and try again."
+          action={
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="px-4 py-2.5 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
+            >
+              Try again
+            </button>
+          }
+        />
       </div>
     )
   }

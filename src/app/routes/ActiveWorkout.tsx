@@ -6,6 +6,7 @@ import { SetRow } from '@/components/workout/SetRow'
 import { RestTimer } from '@/components/workout/RestTimer'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { cn } from '@/lib/utils'
 import { Play } from 'lucide-react'
 
@@ -102,7 +103,19 @@ export function ActiveWorkout() {
   if (!id) {
     return (
       <div className="p-4 pb-20">
-        <p className="text-muted-foreground">No workout selected.</p>
+        <EmptyState
+          message="No workout selected"
+          description="Start a workout from the dashboard or calendar."
+          action={
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="px-4 py-2.5 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
+            >
+              Go to home
+            </button>
+          }
+        />
       </div>
     )
   }
@@ -147,6 +160,15 @@ export function ActiveWorkout() {
         <EmptyState
           message="No exercises in this workout"
           description="Add exercises to the template in Workout Builder."
+          action={
+            <button
+              type="button"
+              onClick={() => navigate('/builder')}
+              className="px-4 py-2.5 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
+            >
+              Open Workout Builder
+            </button>
+          }
         />
       </div>
     )

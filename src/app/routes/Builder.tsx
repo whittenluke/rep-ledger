@@ -24,7 +24,7 @@ function templateSummary(t: WorkoutTemplate): { exerciseCount: number; movement:
 
 export function Builder() {
   const navigate = useNavigate()
-  const { templates, loading, error, create, remove } = useWorkoutTemplates()
+  const { templates, loading, error, refetch, create, remove } = useWorkoutTemplates()
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
@@ -84,7 +84,16 @@ export function Builder() {
       </div>
 
       {error && (
-        <p className="mt-4 text-sm text-red-500">Failed to load templates.</p>
+        <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex flex-wrap items-center gap-2" role="alert">
+          <span>Failed to load templates.</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="font-medium underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </div>
       )}
       {deleteError && (
         <p className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm" role="alert">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useActiveWorkoutStore } from '@/store/activeWorkout'
 import { useCalendar } from '@/hooks/useCalendar'
@@ -9,8 +9,11 @@ import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates'
 import { useStartWorkout } from '@/contexts/StartWorkoutContext'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { cn } from '@/lib/utils'
 import { Calendar, CheckCircle2, ChevronRight, Dumbbell, Plus, Trash2 } from 'lucide-react'
+
+type DashboardState = 'onboarding' | 'nothing_scheduled' | 'scheduled_today' | 'completed_today'
 
 function toLocalDateStr(d: Date) {
   const y = d.getFullYear()
@@ -35,6 +38,7 @@ function formatSessionDate(iso: string) {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const { sessionId, scheduledWorkoutId, reset } = useActiveWorkoutStore()
   const hasInProgressSession = sessionId && scheduledWorkoutId
 
@@ -45,8 +49,10 @@ export function Dashboard() {
     now.getMonth() + 1
   )
   const { sessions: recentSessions, loading: historyLoading } = useWorkoutHistory()
+  const { templates, loading: templatesLoading, create: createTemplate } = useWorkoutTemplates()
+  const { openStartWorkout } = useStartWorkout()
 
-  const { completedTodayList, notCompletedTodayList, lastThree } = useMemo(() => {
+  const { completedTodayList, notCompletedTodayList, lastThree, sessionsCompletedToday } = useMemo(() => {
     const list = scheduled.filter((s) => s.scheduled_date === todayStr)
     const completedIds = new Set(
       recentSessions
@@ -60,22 +66,40 @@ export function Dashboard() {
         scheduled: s,
         session: recentSessions.find((r) => r.scheduled_workout_id === s.id)!,
       }))
+    const completedToday = recentSessions.filter((s) => s.completed_at.slice(0, 10) === todayStr)
     return {
       completedTodayList: completedList,
       notCompletedTodayList: notCompleted,
       lastThree: recentSessions.slice(0, 3),
+      sessionsCompletedToday: completedToday,
     }
   }, [scheduled, todayStr, recentSessions])
+
+  const dashboardState: DashboardState = useMemo(() => {
+    if (templates.length === 0) return 'onboarding'
+    if (sessionsCompletedToday.length > 0) return 'completed_today'
+    if (notCompletedTodayList.length > 0) return 'scheduled_today'
+    return 'nothing_scheduled'
+  }, [templates.length, sessionsCompletedToday.length, notCompletedTodayList.length])
 
   const { currentStreak, workoutsThisWeek, loading: analyticsLoading } = useProgressAnalytics()
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(todayStr)
   const [removeConfirm, setRemoveConfirm] = useState<{ id: string; name: string } | null>(null)
-  const { templates } = useWorkoutTemplates()
-  const { openStartWorkout } = useStartWorkout()
 
-  const loading = calendarLoading || historyLoading || analyticsLoading
+  const dashboardLoading = calendarLoading || historyLoading || analyticsLoading
+
+  async function handleBuildFirstWorkout() {
+    setBuildError(null)
+    try {
+      const t = await createTemplate({ name: 'Untitled workout' })
+      navigate(`/builder/${t.id}`)
+    } catch (err) {
+      console.error(err)
+      setBuildError(err instanceof Error ? err.message : 'Could not create workout. Try again.')
+    }
+  }
 
   function openScheduleModal() {
     setScheduleDate(todayStr)
@@ -109,132 +133,228 @@ export function Dashboard() {
 
   return (
     <div className="p-4 pb-20 space-y-6">
-      <PageHeader title="Today" />
-
-      {hasInProgressSession && (
-        <div className="p-3 rounded-lg border border-accent/50 bg-accent/10 flex flex-col gap-2">
-          <p className="text-sm font-medium">You have an in-progress workout.</p>
-          <div className="flex gap-2">
-            <Link
-              to={`/session/${scheduledWorkoutId}`}
-              className="px-3 py-2 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px] flex items-center justify-center"
-            >
-              Resume
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Discard this workout? Progress will be lost.')) reset()
-              }}
-              className="px-3 py-2 rounded-lg border border-border min-h-[44px]"
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!hasInProgressSession && (
+      {templatesLoading ? (
+        <LoadingState message="Loading…" />
+      ) : (
         <>
-          {loading ? (
+          {hasInProgressSession && (
+            <div className="p-3 rounded-lg border border-accent/50 bg-accent/10 flex flex-col gap-2">
+              <p className="text-sm font-medium">You have an in-progress workout.</p>
+              <div className="flex gap-2">
+                <Link
+                  to={`/session/${scheduledWorkoutId}`}
+                  className="px-3 py-2 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px] flex items-center justify-center"
+                >
+                  Resume
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Discard this workout? Progress will be lost.')) reset()
+                  }}
+                  className="px-3 py-2 rounded-lg border border-border min-h-[44px]"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
+
+          {dashboardState === 'onboarding' && (
+            <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6">
+              <h1 className="font-display text-2xl font-semibold text-foreground text-center">
+                Welcome to Rep Ledger.
+              </h1>
+              <p className="text-muted-foreground text-center">
+                Start by building your first workout.
+              </p>
+              {buildError && (
+                <p className="text-sm text-destructive text-center max-w-sm" role="alert">
+                  {buildError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleBuildFirstWorkout}
+                className={cn(
+                  'w-full max-w-sm flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
+                  'bg-accent text-primary-foreground font-semibold min-h-[48px]',
+                  'hover:opacity-90 transition-opacity'
+                )}
+              >
+                Build a workout
+              </button>
+            </div>
+          )}
+
+          {dashboardState !== 'onboarding' && dashboardLoading && (
             <LoadingState message="Loading…" />
-          ) : (
+          )}
+
+          {dashboardState !== 'onboarding' && !dashboardLoading && (
             <>
-              {completedTodayList.length > 0 && (
-                <div className="space-y-3">
-                  {completedTodayList.map(({ scheduled: s, session }) => (
-                    <div key={s.id} className="p-4 rounded-lg border-2 border-accent/70 bg-accent/5">
-                      <p className="flex items-center gap-1.5 text-sm text-accent">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden />
-                        Workout completed
-                      </p>
-                      <p className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground uppercase">
-                        {s.workout_templates?.name ?? 'Workout'}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {formatSessionDate(session.completed_at)} · {session.setsCount} sets · {formatDuration(session.durationSeconds)}
-                      </p>
-                      <Link
-                        to={`/history/${session.id}`}
-                        className={cn(
-                          'mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
-                          'border border-border bg-card font-medium min-h-[44px]',
-                          'hover:border-accent/50 transition-colors'
-                        )}
-                      >
-                        View session
-                        <ChevronRight className="w-5 h-5" aria-hidden />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
+              <PageHeader title="Today" />
+
+              {dashboardState === 'nothing_scheduled' && (
+                <>
+                  <div className="p-4 rounded-lg border border-border bg-card space-y-4">
+                    <p className="text-muted-foreground">No workout scheduled for today.</p>
+                    <button
+                      type="button"
+                      onClick={openStartWorkout}
+                      className={cn(
+                        'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
+                        'bg-accent text-primary-foreground font-semibold min-h-[48px]',
+                        'hover:opacity-90 transition-opacity'
+                      )}
+                    >
+                      <Dumbbell className="w-5 h-5" aria-hidden />
+                      Start workout
+                    </button>
+                  </div>
+                  <Link
+                    to="/calendar"
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground min-h-[44px]"
+                  >
+                    <Calendar className="w-5 h-5" aria-hidden />
+                    Calendar
+                  </Link>
+                </>
               )}
 
-              {notCompletedTodayList.length > 0 && (
-                <div className="space-y-3">
-                  {notCompletedTodayList.map((s) => (
-                    <div key={s.id} className="relative p-4 pr-12 rounded-lg border border-border bg-card">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          openRemoveConfirm(s.id, s.workout_templates?.name ?? 'Workout')
-                        }}
-                        className="absolute top-3 right-3 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center"
-                        aria-label="Unschedule"
-                      >
-                        <Trash2 className="w-5 h-5" aria-hidden />
-                      </button>
-                      <p className="text-sm text-muted-foreground mb-1">Scheduled for today</p>
-                      <p className="font-display text-xl font-semibold text-foreground">
-                        {s.workout_templates?.name ?? 'Workout'}
-                      </p>
-                      <div className="mt-4">
-                        <Link
-                          to={`/session/${s.id}`}
-                          className={cn(
-                            'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
-                            'bg-accent text-primary-foreground font-semibold min-h-[48px]',
-                            'hover:opacity-90 transition-opacity'
-                          )}
+              {dashboardState === 'scheduled_today' && (
+                <>
+                  <div className="space-y-3">
+                    {notCompletedTodayList.map((s) => (
+                      <div key={s.id} className="relative p-4 pr-12 rounded-lg border border-border bg-card">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            openRemoveConfirm(s.id, s.workout_templates?.name ?? 'Workout')
+                          }}
+                          className="absolute top-3 right-3 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center"
+                          aria-label="Unschedule"
                         >
-                          <Dumbbell className="w-5 h-5" aria-hidden />
-                          Start workout
-                        </Link>
+                          <Trash2 className="w-5 h-5" aria-hidden />
+                        </button>
+                        <p className="text-sm text-muted-foreground mb-1">Scheduled for today</p>
+                        <p className="font-display text-xl font-semibold text-foreground">
+                          {s.workout_templates?.name ?? 'Workout'}
+                        </p>
+                        <div className="mt-4">
+                          <Link
+                            to={`/session/${s.id}`}
+                            className={cn(
+                              'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
+                              'bg-accent text-primary-foreground font-semibold min-h-[48px]',
+                              'hover:opacity-90 transition-opacity'
+                            )}
+                          >
+                            <Dumbbell className="w-5 h-5" aria-hidden />
+                            Start workout
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  <Link
+                    to="/calendar"
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground min-h-[44px]"
+                  >
+                    <Calendar className="w-5 h-5" aria-hidden />
+                    Calendar
+                  </Link>
+                </>
               )}
 
-              {completedTodayList.length === 0 && notCompletedTodayList.length === 0 && (
-                <div className="p-4 rounded-lg border border-border bg-card space-y-4">
-                  <p className="text-muted-foreground">No workouts scheduled for today.</p>
+              {dashboardState === 'completed_today' && (
+                <>
+                  <div className="space-y-3">
+                    {sessionsCompletedToday[0] && (() => {
+                      const session = sessionsCompletedToday[0]
+                      return (
+                        <div key={session.id} className="p-4 rounded-lg border-2 border-accent/70 bg-accent/5">
+                          <p className="flex items-center gap-1.5 text-sm text-accent">
+                            <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden />
+                            Workout completed
+                          </p>
+                          <p className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground uppercase">
+                            {session.template_name}
+                          </p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {formatSessionDate(session.completed_at)} · {session.setsCount} sets · {formatDuration(session.durationSeconds)}
+                          </p>
+                          <Link
+                            to={`/history/${session.id}`}
+                            className={cn(
+                              'mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
+                              'border border-border bg-card font-medium min-h-[44px]',
+                              'hover:border-accent/50 transition-colors'
+                            )}
+                          >
+                            View session
+                            <ChevronRight className="w-5 h-5" aria-hidden />
+                          </Link>
+                        </div>
+                      )
+                    })()}
+                  </div>
                   <button
                     type="button"
                     onClick={openStartWorkout}
-                    className={cn(
-                      'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg',
-                      'bg-accent text-primary-foreground font-semibold min-h-[48px]',
-                      'hover:opacity-90 transition-opacity'
-                    )}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-accent/50 min-h-[44px]"
                   >
-                    <Dumbbell className="w-5 h-5" aria-hidden />
-                    Start workout
+                    Do another workout
                   </button>
-                  <p className="text-xs text-muted-foreground">
-                    Pick a template to start now, or schedule one for another day below.
-                  </p>
-                </div>
+                </>
               )}
 
-              <Link
-                to="/calendar"
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground min-h-[44px]"
-              >
-                <Calendar className="w-5 h-5" aria-hidden />
-                Calendar
-              </Link>
+              <section>
+                <h2 className="font-display text-lg font-semibold text-foreground mb-2">Quick stats</h2>
+                <div className="flex gap-4">
+                  <div className="flex-1 p-3 rounded-lg border border-border bg-card">
+                    <p className="text-2xl font-display font-semibold text-accent">{workoutsThisWeek}</p>
+                    <p className="text-xs text-muted-foreground">This week</p>
+                  </div>
+                  <div className="flex-1 p-3 rounded-lg border border-border bg-card">
+                    <p className="text-2xl font-display font-semibold text-accent">{currentStreak}</p>
+                    <p className="text-xs text-muted-foreground">Day streak</p>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h2 className="font-display text-lg font-semibold text-foreground mb-2">Recent activity</h2>
+                {lastThree.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No completed workouts yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {lastThree.map((s) => (
+                      <li key={s.id}>
+                        <Link
+                          to={`/history/${s.id}`}
+                          className={cn(
+                            'block p-3 rounded-lg border border-border bg-card',
+                            'hover:border-accent/50 transition-colors min-h-[44px]'
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground truncate">{s.template_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatSessionDate(s.completed_at)} · {s.setsCount} sets ·{' '}
+                                {formatDuration(s.durationSeconds)}
+                              </p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             </>
           )}
 
@@ -331,58 +451,6 @@ export function Dashboard() {
               </div>
             </div>
           )}
-        </>
-      )}
-
-      {!loading && (
-        <>
-          <section>
-            <h2 className="font-display text-lg font-semibold text-foreground mb-2">Quick stats</h2>
-            <div className="flex gap-4">
-              <div className="flex-1 p-3 rounded-lg border border-border bg-card">
-                <p className="text-2xl font-display font-semibold text-accent">{workoutsThisWeek}</p>
-                <p className="text-xs text-muted-foreground">This week</p>
-              </div>
-              <div className="flex-1 p-3 rounded-lg border border-border bg-card">
-                <p className="text-2xl font-display font-semibold text-accent">{currentStreak}</p>
-                <p className="text-xs text-muted-foreground">
-                  Day streak
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <h2 className="font-display text-lg font-semibold text-foreground mb-2">Recent activity</h2>
-            {lastThree.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No completed workouts yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {lastThree.map((s) => (
-                  <li key={s.id}>
-                    <Link
-                      to={`/history/${s.id}`}
-                      className={cn(
-                        'block p-3 rounded-lg border border-border bg-card',
-                        'hover:border-accent/50 transition-colors min-h-[44px]'
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground truncate">{s.template_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatSessionDate(s.completed_at)} · {s.setsCount} sets ·{' '}
-                            {formatDuration(s.durationSeconds)}
-                          </p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </>
       )}
     </div>

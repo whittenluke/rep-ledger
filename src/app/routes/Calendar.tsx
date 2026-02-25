@@ -27,6 +27,7 @@ export function Calendar() {
     completedDates,
     loading,
     error,
+    refetch,
     createScheduled,
     removeScheduled,
     getScheduledForDate,
@@ -114,7 +115,16 @@ export function Calendar() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-500 mb-2">Failed to load calendar.</p>
+        <div className="flex flex-wrap items-center gap-2 mb-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          <span>Failed to load calendar.</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="font-medium underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {loading ? (

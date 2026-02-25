@@ -2,6 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useSessionDetail } from '@/hooks/useWorkoutHistory'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -26,7 +28,20 @@ export function SessionDetail() {
   if (!sessionId) {
     return (
       <div className="p-4 pb-20">
-        <p className="text-muted-foreground">No session selected.</p>
+        <PageHeader title="History" />
+        <EmptyState
+          message="No session selected"
+          description="Open a session from the History list."
+          action={
+            <button
+              type="button"
+              onClick={() => navigate('/history')}
+              className="px-4 py-2.5 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
+            >
+              View history
+            </button>
+          }
+        />
       </div>
     )
   }
@@ -42,10 +57,20 @@ export function SessionDetail() {
   if (error || !detail) {
     return (
       <div className="p-4 pb-20">
-        <p className="text-red-500">Session not found.</p>
-        <button type="button" onClick={() => navigate(-1)} className="mt-2 text-accent">
-          Back
-        </button>
+        <PageHeader title="History" />
+        <ErrorState
+          message="Session not found"
+          description="This session may have been deleted or the link is invalid."
+          action={
+            <button
+              type="button"
+              onClick={() => navigate('/history')}
+              className="px-4 py-2.5 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
+            >
+              Back to history
+            </button>
+          }
+        />
       </div>
     )
   }

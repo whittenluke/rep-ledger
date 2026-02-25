@@ -24,14 +24,23 @@ function formatDuration(seconds: number) {
 
 export function History() {
   const navigate = useNavigate()
-  const { sessions, loading, error } = useWorkoutHistory()
+  const { sessions, loading, error, refetch } = useWorkoutHistory()
 
   return (
     <div className="p-4 pb-20">
       <PageHeader title="History" />
 
       {error && (
-        <p className="mt-4 text-sm text-red-500">Failed to load history.</p>
+        <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex flex-wrap items-center gap-2" role="alert">
+          <span>Failed to load history.</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="font-medium underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {loading ? (

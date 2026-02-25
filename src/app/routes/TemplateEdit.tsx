@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { ChevronUp, ChevronDown, Trash2, Plus, ChevronRight, Dumbbell } from 'lucide-react'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 
 const inputClass =
   'w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent'
@@ -27,7 +28,7 @@ export function TemplateEdit() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { templates, loading: templatesLoading, update: updateTemplate, remove: removeTemplate } = useWorkoutTemplates()
-  const { rows, loading, add, remove, reorder, addSet, removeSet, updateSet, refetch } = useTemplateExercises(id ?? null)
+  const { rows, loading, error: exercisesError, add, remove, reorder, addSet, removeSet, updateSet, refetch } = useTemplateExercises(id ?? null)
   const { exercises, systemExercises } = useExercises()
 
   const template = templates.find((t) => t.id === id)
@@ -252,7 +253,21 @@ export function TemplateEdit() {
           </button>
         </div>
 
-        {loading ? (
+        {exercisesError ? (
+          <ErrorState
+            message="Couldn't load exercises"
+            description="Check your connection and try again."
+            action={
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="px-4 py-2.5 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px]"
+              >
+                Try again
+              </button>
+            }
+          />
+        ) : loading ? (
           <LoadingState message="Loading exercises…" />
         ) : rows.length === 0 ? (
           <EmptyState

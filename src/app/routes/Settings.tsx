@@ -178,7 +178,7 @@ export function Settings() {
             : exportStatus === 'done'
               ? 'Downloaded'
               : exportStatus === 'error'
-                ? 'Export failed'
+                ? 'Export failed — try again'
                 : 'Export my data (JSON)'}
         </button>
       </section>
