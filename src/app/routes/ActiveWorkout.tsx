@@ -43,26 +43,43 @@ export function ActiveWorkout() {
     elapsedSeconds,
   } = useWorkoutSession(id ?? null)
 
+  const handleRestartSet = useCallback(
+    async (setId: string) => {
+      await updateSet(setId, {
+        completed: false,
+        actual_reps: null,
+        actual_duration_seconds: null,
+        weight: null,
+      })
+    },
+    [updateSet]
+  )
+
   const handleCompleteSet = useCallback(
-    async (setId: string, setRow: (typeof sets)[0]) => {
+    async (
+      setId: string,
+      setRow: (typeof sets)[0],
+      override?: { actual_duration_seconds?: number }
+    ) => {
       const payload =
         currentExercise?.type === 'time'
           ? {
-              actual_duration_seconds:
-                setRow.actual_duration_seconds ??
-                setRow.target_duration_seconds ??
-                currentExercise.target_duration_seconds ??
-                0,
-            }
+            actual_duration_seconds:
+              override?.actual_duration_seconds ??
+              setRow.actual_duration_seconds ??
+              setRow.target_duration_seconds ??
+              currentExercise.target_duration_seconds ??
+              0,
+          }
           : {
-              actual_reps:
-                setRow.actual_reps ??
-                setRow.target_reps ??
-                currentExercise?.target_reps ??
-                0,
-              weight:
-                setRow.weight ?? currentExercise?.target_weight ?? null,
-            }
+            actual_reps:
+              setRow.actual_reps ??
+              setRow.target_reps ??
+              currentExercise?.target_reps ??
+              0,
+            weight:
+              setRow.weight ?? currentExercise?.target_weight ?? null,
+          }
       await markSetComplete(setId, payload)
       if (defaultRestSeconds > 0) {
         setRestTimerAfterSetId(setId)
@@ -236,7 +253,7 @@ export function ActiveWorkout() {
           const isCurrentSet = currentSetIndex === index
           return (
             <li key={set.id} className="flex flex-col gap-2">
-              {isCurrentSet && (
+              {isCurrentSet && restTimerAfterSetId == null && (
                 <p className="text-xs font-medium text-accent">Current set</p>
               )}
               <SetRow
@@ -245,13 +262,20 @@ export function ActiveWorkout() {
                 isTimeBased={isTimeBased}
                 targetReps={set.target_reps ?? currentExercise.target_reps ?? null}
                 targetWeight={set.target_weight ?? currentExercise.target_weight ?? null}
+                targetDurationSeconds={
+                  set.target_duration_seconds ??
+                  currentExercise.target_duration_seconds ??
+                  null
+                }
                 onActualRepsChange={(v) => updateSet(set.id, { actual_reps: v })}
                 onActualDurationChange={(v) => updateSet(set.id, { actual_duration_seconds: v })}
                 onWeightChange={(v) => updateSet(set.id, { weight: v })}
-                onComplete={() => handleCompleteSet(set.id, set)}
+                onComplete={(override) => handleCompleteSet(set.id, set, override)}
                 onRemove={() => removeSet(set.id).catch((err) => console.error(err))}
+                onRestart={() => handleRestartSet(set.id).catch((err) => console.error(err))}
                 canRemove={!set.completed && sets.length > 1}
                 isCurrentSet={isCurrentSet}
+                restTimerActive={restTimerAfterSetId != null}
               />
               {restTimerAfterSetId === set.id && restSecondsLeft > 0 && (
                 <RestTimer
@@ -274,7 +298,7 @@ export function ActiveWorkout() {
 
       <div className="flex flex-col gap-2">
         {restTimerAfterSetId != null &&
-        sets.findIndex((s) => s.id === restTimerAfterSetId) + 1 >= sets.length ? (
+          sets.findIndex((s) => s.id === restTimerAfterSetId) + 1 >= sets.length ? (
           <p className="text-center text-sm font-medium text-accent">
             Last set done. Tap Next exercise below when ready.
           </p>

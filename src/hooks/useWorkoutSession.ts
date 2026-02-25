@@ -70,7 +70,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
     const { data: scheduled } = await supabase
       .from('scheduled_workouts')
       .select('id, template_id, workout_templates(name)')
-        .eq('id', swId)
+      .eq('id', swId)
       .single()
 
     if (!scheduled?.template_id) throw new Error('Scheduled workout or template not found')
@@ -275,6 +275,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         actual_reps?: number | null
         actual_duration_seconds?: number | null
         weight?: number | null
+        completed?: boolean
       }
     ) => {
       const { error: e } = await supabase
