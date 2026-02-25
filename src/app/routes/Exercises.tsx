@@ -185,7 +185,7 @@ export function Exercises() {
     'w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent'
 
   return (
-    <div className="p-4 pb-20">
+    <div className="flex flex-col min-h-[calc(100dvh-80px)] p-4 pb-20">
       <div className="flex items-center justify-between gap-4">
         <PageHeader title="My Exercises" />
         <button
@@ -495,10 +495,12 @@ export function Exercises() {
       {loading ? (
         <LoadingState message="Loading exercises…" />
       ) : exercises.length === 0 ? (
-        <EmptyState
-          message="No exercises yet"
-          description="Create a new exercise."
-        />
+        <div className="flex-1 flex flex-col justify-center">
+          <EmptyState
+            message="No exercises yet"
+            description="Create a new exercise."
+          />
+        </div>
       ) : (
         <ul className="mt-4 space-y-2">
           {exercises.map((ex) => (
