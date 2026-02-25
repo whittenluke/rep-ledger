@@ -49,7 +49,7 @@ export function Dashboard() {
     now.getMonth() + 1
   )
   const { sessions: recentSessions, loading: historyLoading } = useWorkoutHistory()
-  const { templates, loading: templatesLoading, create: createTemplate } = useWorkoutTemplates()
+  const { templates, loading: templatesLoading } = useWorkoutTemplates()
   const { openStartWorkout } = useStartWorkout()
 
   const { completedTodayList, notCompletedTodayList, lastThree, sessionsCompletedToday } = useMemo(() => {
@@ -90,15 +90,8 @@ export function Dashboard() {
 
   const dashboardLoading = calendarLoading || historyLoading || analyticsLoading
 
-  async function handleBuildFirstWorkout() {
-    setBuildError(null)
-    try {
-      const t = await createTemplate({ name: 'Untitled workout' })
-      navigate(`/builder/${t.id}`)
-    } catch (err) {
-      console.error(err)
-      setBuildError(err instanceof Error ? err.message : 'Could not create workout. Try again.')
-    }
+  function handleBuildFirstWorkout() {
+    navigate('/builder/new')
   }
 
   function openScheduleModal() {
@@ -162,17 +155,14 @@ export function Dashboard() {
 
           {dashboardState === 'onboarding' && (
             <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6">
-              <h1 className="font-display text-2xl font-semibold text-foreground text-center">
-                Welcome to Rep Ledger.
-              </h1>
-              <p className="text-muted-foreground text-center">
+              <img
+                src="/rep-ledger-logo.svg"
+                alt="Rep Ledger"
+                className="w-full max-w-[200px] h-auto"
+              />
+              <p className="font-display text-xl font-semibold text-muted-foreground text-center">
                 Start by building your first workout.
               </p>
-              {buildError && (
-                <p className="text-sm text-destructive text-center max-w-sm" role="alert">
-                  {buildError}
-                </p>
-              )}
               <button
                 type="button"
                 onClick={handleBuildFirstWorkout}
@@ -182,7 +172,7 @@ export function Dashboard() {
                   'hover:opacity-90 transition-opacity'
                 )}
               >
-                Build a workout
+                Build workout
               </button>
             </div>
           )}

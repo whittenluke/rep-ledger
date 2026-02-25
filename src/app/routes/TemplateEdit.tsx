@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { PageHeader } from '@/components/layout/PageHeader'
+import { supabase } from '@/lib/supabase'
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates'
 import { useTemplateExercises } from '@/hooks/useTemplateExercises'
 import {
@@ -24,22 +24,45 @@ import { ErrorState } from '@/components/ui/ErrorState'
 const inputClass =
   'w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent'
 
+/** Draft row when creating a new template (no id yet). */
+interface DraftRow {
+  exercise_id: string
+  name: string
+  primary_muscle: string | null
+  type: 'reps' | 'time'
+  equipment: string
+  is_bodyweight: boolean
+  target_sets: number
+  target_reps: number
+  target_duration_seconds: number | null
+  target_weight: number | null
+}
+
 export function TemplateEdit() {
-  const { id } = useParams<{ id: string }>()
+  const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
-  const { templates, loading: templatesLoading, update: updateTemplate, remove: removeTemplate } = useWorkoutTemplates()
-  const { rows, loading, error: exercisesError, add, remove, reorder, addSet, removeSet, updateSet, refetch } = useTemplateExercises(id ?? null)
+  const isNew = id === undefined
+  const { templates, loading: templatesLoading, update: updateTemplate, remove: removeTemplate, create: createTemplate } = useWorkoutTemplates()
+  const { rows, loading, error: exercisesError, add, remove, reorder, addSet, removeSet, updateSet, refetch } = useTemplateExercises(isNew ? null : id ?? null)
   const { exercises, systemExercises } = useExercises()
 
-  const template = templates.find((t) => t.id === id)
+  const template = isNew ? null : templates.find((t) => t.id === id)
   const [name, setName] = useState('')
   const [notes, setNotes] = useState('')
+  const [draftRows, setDraftRows] = useState<DraftRow[]>([])
   useEffect(() => {
     if (template) {
       setName(template.name)
       setNotes(template.notes ?? '')
     }
   }, [template])
+  useEffect(() => {
+    if (isNew) {
+      setName('Untitled workout')
+      setNotes('')
+      setDraftRows([])
+    }
+  }, [isNew])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
   const [addingSystemId, setAddingSystemId] = useState<string | null>(null)
@@ -47,6 +70,22 @@ export function TemplateEdit() {
   const [muscleGroupFilter, setMuscleGroupFilter] = useState<Set<MuscleGroupLabel>>(() => new Set())
   const [expandedGroups, setExpandedGroups] = useState<Set<MovementPattern>>(() => new Set())
   const [showSaved, setShowSaved] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const hasAutoFocusedName = useRef(false)
+
+  useEffect(() => {
+    if (id) hasAutoFocusedName.current = false
+  }, [id])
+  useEffect(() => {
+    if (hasAutoFocusedName.current) return
+    const shouldFocus = isNew || (!!template && name === 'Untitled workout' && rows.length === 0)
+    if (!shouldFocus) return
+    const t = setTimeout(() => {
+      nameInputRef.current?.focus()
+      hasAutoFocusedName.current = true
+    }, 100)
+    return () => clearTimeout(t)
+  }, [isNew, template, name, rows.length])
 
   function openPicker() {
     setPickerOpen(true)
@@ -135,6 +174,54 @@ export function TemplateEdit() {
     setTimeout(() => navigate('/builder'), 1500)
   }, [saveNameAndNotes, navigate])
 
+  const handleBackNew = useCallback(() => {
+    navigate('/builder')
+  }, [navigate])
+
+  const [creating, setCreating] = useState(false)
+  const handleDoneNew = useCallback(async () => {
+    setCreating(true)
+    try {
+      const trimmedName = name.trim() || 'Untitled workout'
+      const t = await createTemplate({ name: trimmedName, notes: notes.trim() || null })
+      const templateId = t.id
+      for (let i = 0; i < draftRows.length; i++) {
+        const row = draftRows[i]
+        const { data: te, error: teErr } = await supabase
+          .from('template_exercises')
+          .insert({
+            template_id: templateId,
+            exercise_id: row.exercise_id,
+            position: i,
+            target_sets: row.target_sets,
+            target_reps: row.target_reps,
+            target_duration_seconds: row.target_duration_seconds,
+            target_weight: row.target_weight,
+            notes: null,
+          })
+          .select('id')
+          .single()
+        if (teErr) throw teErr
+        const isTime = row.type === 'time'
+        for (let s = 0; s < row.target_sets; s++) {
+          await supabase.from('template_exercise_sets').insert({
+            template_exercise_id: te.id,
+            set_number: s + 1,
+            target_reps: isTime ? null : row.target_reps,
+            target_duration_seconds: isTime ? row.target_duration_seconds : null,
+            target_weight: isTime ? null : row.target_weight,
+          })
+        }
+      }
+      setShowSaved(true)
+      setTimeout(() => navigate('/builder'), 800)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setCreating(false)
+    }
+  }, [name, notes, draftRows, createTemplate, navigate])
+
   const handleAddExercise = useCallback(
     async (exerciseId: string, exerciseType: 'reps' | 'time' = 'reps') => {
       if (!id) return
@@ -154,6 +241,26 @@ export function TemplateEdit() {
 
   const handleAddFromPicker = useCallback(
     async (ex: Exercise) => {
+      if (isNew) {
+        setDraftRows((prev) => [
+          ...prev,
+          {
+            exercise_id: ex.id,
+            name: ex.name,
+            primary_muscle: ex.primary_muscle ?? null,
+            type: (ex.type ?? 'reps') as 'reps' | 'time',
+            equipment: ex.equipment,
+            is_bodyweight: ex.is_bodyweight,
+            target_sets: 3,
+            target_reps: ex.type === 'time' ? 1 : 10,
+            target_duration_seconds: ex.type === 'time' ? 60 : null,
+            target_weight: null,
+          },
+        ])
+        setPickerOpen(false)
+        setPickerQuery('')
+        return
+      }
       if (!id) return
       try {
         setAddingSystemId(ex.id)
@@ -164,7 +271,7 @@ export function TemplateEdit() {
         setAddingSystemId(null)
       }
     },
-    [id, handleAddExercise]
+    [isNew, id, handleAddExercise]
   )
 
   const handleDeleteTemplate = useCallback(async () => {
@@ -173,14 +280,14 @@ export function TemplateEdit() {
     navigate('/builder')
   }, [id, removeTemplate, navigate])
 
-  if (id && templatesLoading && templates.length === 0) {
+  if (!isNew && id && templatesLoading && templates.length === 0) {
     return (
       <div className="p-4 pb-20">
         <p className="text-muted-foreground">Loading…</p>
       </div>
     )
   }
-  if (id && !template && !templatesLoading) {
+  if (!isNew && id && !template && !templatesLoading) {
     return (
       <div className="p-4 pb-20">
         <p className="text-muted-foreground">Template not found.</p>
@@ -196,7 +303,7 @@ export function TemplateEdit() {
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={handleSaveAndLeave}
+          onClick={isNew ? handleBackNew : handleSaveAndLeave}
           disabled={showSaved}
           className="text-muted-foreground hover:text-foreground disabled:opacity-80 min-h-[44px]"
         >
@@ -208,11 +315,11 @@ export function TemplateEdit() {
         </button>
         <button
           type="button"
-          onClick={handleSaveAndLeave}
-          disabled={showSaved}
+          onClick={isNew ? handleDoneNew : handleSaveAndLeave}
+          disabled={showSaved || (isNew && creating)}
           className="px-4 py-2 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px] disabled:opacity-80"
         >
-          {showSaved ? 'Saved ✓' : 'Done'}
+          {showSaved ? 'Saved ✓' : isNew && creating ? 'Creating…' : 'Done'}
         </button>
       </div>
 
@@ -220,6 +327,7 @@ export function TemplateEdit() {
         <div>
           <label className="block text-sm text-muted-foreground mb-1">Name</label>
           <input
+            ref={nameInputRef}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={saveNameAndNotes}
@@ -227,17 +335,19 @@ export function TemplateEdit() {
             className={inputClass}
           />
         </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Notes</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={saveNameAndNotes}
-            placeholder="Optional notes"
-            rows={2}
-            className={cn(inputClass, 'resize-none')}
-          />
-        </div>
+        {!isNew && (
+          <div>
+            <label className="block text-sm text-muted-foreground mb-1">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={saveNameAndNotes}
+              placeholder="Optional notes"
+              rows={2}
+              className={cn(inputClass, 'resize-none')}
+            />
+          </div>
+        )}
       </div>
 
       <div className="mt-6">
@@ -246,14 +356,78 @@ export function TemplateEdit() {
           <button
             type="button"
             onClick={openPicker}
-            disabled={!id}
+            disabled={!isNew && !id}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent text-primary-foreground font-medium min-h-[44px] disabled:opacity-50"
           >
             <Plus className="w-5 h-5" /> Add exercise
           </button>
         </div>
 
-        {exercisesError ? (
+        {isNew ? (
+          draftRows.length === 0 ? (
+            <EmptyState
+              message="No exercises in this template"
+              description="Tap Add exercise to build your workout."
+            />
+          ) : (
+            <ul className="space-y-2">
+              {draftRows.map((r, index) => (
+                <li key={`${r.exercise_id}-${index}`} className="rounded-lg border border-border bg-card overflow-hidden">
+                  <div className="flex items-center justify-between gap-2 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground truncate">{r.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {[r.primary_muscle, r.equipment].filter(Boolean).join(' · ') || '\u00a0'}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setDraftRows((prev) => prev.filter((_, i) => i !== index))}
+                        className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center text-red-500"
+                        aria-label="Remove exercise"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDraftRows((prev) => {
+                          const next = [...prev]
+                          const [removed] = next.splice(index, 1)
+                          next.splice(index - 1, 0, removed)
+                          return next
+                        })}
+                        disabled={index === 0}
+                        className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
+                        aria-label="Move up"
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDraftRows((prev) => {
+                          const next = [...prev]
+                          const [removed] = next.splice(index, 1)
+                          next.splice(index + 1, 0, removed)
+                          return next
+                        })}
+                        disabled={index === draftRows.length - 1}
+                        className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
+                        aria-label="Move down"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1.5 text-sm text-muted-foreground border-t border-border/50">
+                    {r.target_sets} sets{r.type === 'time' ? ` · ${r.target_duration_seconds ?? 0}s` : ` · ${r.target_reps} reps`}
+                    {!r.is_bodyweight && r.target_weight != null && r.target_weight > 0 && ` × ${r.target_weight}`}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : exercisesError ? (
           <ErrorState
             message="Couldn't load exercises"
             description="Check your connection and try again."
@@ -463,17 +637,22 @@ export function TemplateEdit() {
         )}
       </div>
 
-      {id && (
-        <div className="mt-8 pt-4 border-t border-border">
-          <button
-            type="button"
-            onClick={handleDeleteTemplate}
-            className="text-sm text-red-500 hover:underline"
-          >
-            Delete template
-          </button>
-        </div>
-      )}
+      {id && (() => {
+        const hasCustomName = name.trim() !== '' && name.trim() !== 'Untitled workout'
+        const hasExercises = rows.length > 0
+        const showDelete = hasCustomName && hasExercises
+        return showDelete ? (
+          <div className="mt-8 pt-4 border-t border-border">
+            <button
+              type="button"
+              onClick={handleDeleteTemplate}
+              className="text-sm text-red-500 hover:underline"
+            >
+              Delete template
+            </button>
+          </div>
+        ) : null
+      })()}
 
       {pickerOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-background" role="dialog" aria-modal="true" aria-label="Add exercise">

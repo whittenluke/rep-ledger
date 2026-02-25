@@ -24,7 +24,7 @@ function templateSummary(t: WorkoutTemplate): { exerciseCount: number; movement:
 
 export function Builder() {
   const navigate = useNavigate()
-  const { templates, loading, error, refetch, create, remove } = useWorkoutTemplates()
+  const { templates, loading, error, refetch, remove } = useWorkoutTemplates()
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
@@ -61,13 +61,8 @@ export function Builder() {
     }
   }
 
-  async function handleNew() {
-    try {
-      const t = await create({ name: 'Untitled workout' })
-      navigate(`/builder/${t.id}`)
-    } catch (err) {
-      console.error(err)
-    }
+  function handleNew() {
+    navigate('/builder/new')
   }
 
   return (

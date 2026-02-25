@@ -43,6 +43,7 @@ const router = createBrowserRouter([
       { path: 'more', element: <More /> },
       { path: 'exercises', element: <Exercises /> },
       { path: 'builder', element: <Builder /> },
+      { path: 'builder/new', element: <TemplateEdit /> },
       { path: 'builder/:id', element: <TemplateEdit /> },
       { path: 'session/:id', element: <ActiveWorkout /> },
       { path: 'history', element: <History /> },
