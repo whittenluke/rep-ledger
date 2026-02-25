@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useWorkoutTemplates, type WorkoutTemplate } from '@/hooks/useWorkoutTemplates'
 import { cn } from '@/lib/utils'
@@ -24,11 +24,20 @@ function templateSummary(t: WorkoutTemplate): { exerciseCount: number; movement:
 
 export function Builder() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { templates, loading, error, refetch, remove } = useWorkoutTemplates()
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  // Refetch when returning from creating/editing a template so the list is up to date
+  useEffect(() => {
+    if (location.state?.fromCreate === true) {
+      refetch()
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state?.fromCreate, location.pathname, navigate, refetch])
 
   useEffect(() => {
     if (!menuOpenId) return

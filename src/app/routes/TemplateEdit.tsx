@@ -250,7 +250,7 @@ export function TemplateEdit() {
         }
       }
       setShowSaved(true)
-      setTimeout(() => navigate('/builder'), 800)
+      setTimeout(() => navigate('/builder', { state: { fromCreate: true } }), 800)
     } catch (err) {
       console.error(err)
     } finally {
