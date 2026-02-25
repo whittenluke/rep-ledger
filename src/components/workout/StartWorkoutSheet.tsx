@@ -76,7 +76,7 @@ export function StartWorkoutSheet({ open, onClose }: StartWorkoutSheetProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-black/60 sm:bg-black/50"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center sm:justify-center bg-black/60 sm:bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-label="Start workout"

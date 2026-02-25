@@ -40,7 +40,10 @@ export function BottomNav() {
         <div className="flex items-center justify-center flex-shrink-0 w-16">
           <button
             type="button"
-            onClick={openStartWorkout}
+            onClick={(e) => {
+              e.stopPropagation()
+              openStartWorkout()
+            }}
             className="flex items-center justify-center w-14 h-14 -mt-6 rounded-full bg-accent text-primary-foreground shadow-lg hover:opacity-90 active:scale-95 transition-all min-w-[56px] min-h-[56px]"
             aria-label="Start workout"
           >

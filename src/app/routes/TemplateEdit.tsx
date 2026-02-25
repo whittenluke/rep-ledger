@@ -24,6 +24,14 @@ import { ErrorState } from '@/components/ui/ErrorState'
 const inputClass =
   'w-full px-3 py-2 rounded-lg bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent'
 
+/** Per-set targets for a draft exercise (no DB id yet). */
+interface DraftSet {
+  set_number: number
+  target_reps: number | null
+  target_duration_seconds: number | null
+  target_weight: number | null
+}
+
 /** Draft row when creating a new template (no id yet). */
 interface DraftRow {
   exercise_id: string
@@ -36,6 +44,7 @@ interface DraftRow {
   target_reps: number
   target_duration_seconds: number | null
   target_weight: number | null
+  sets: DraftSet[]
 }
 
 export function TemplateEdit() {
@@ -62,6 +71,26 @@ export function TemplateEdit() {
       setNotes('')
       setDraftRows([])
     }
+  }, [isNew])
+
+  // Backfill sets on draft rows that don't have them (e.g. from before per-set editing)
+  useEffect(() => {
+    if (!isNew) return
+    setDraftRows((prev) => {
+      const needsBackfill = prev.some((row) => !row.sets?.length)
+      if (!needsBackfill) return prev
+      return prev.map((row) => {
+        if (row.sets?.length) return row
+        const len = row.target_sets || (row.type === 'time' ? 1 : 3)
+        const sets: DraftSet[] = Array.from({ length: len }, (_, i) => ({
+          set_number: i + 1,
+          target_reps: row.type === 'time' ? null : row.target_reps,
+          target_duration_seconds: row.type === 'time' ? row.target_duration_seconds : null,
+          target_weight: row.type === 'time' ? null : row.target_weight,
+        }))
+        return { ...row, sets }
+      })
+    })
   }, [isNew])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
@@ -187,13 +216,15 @@ export function TemplateEdit() {
       const templateId = t.id
       for (let i = 0; i < draftRows.length; i++) {
         const row = draftRows[i]
+        const sets = row.sets ?? []
+        const targetSets = sets.length || row.target_sets || (row.type === 'time' ? 1 : 3)
         const { data: te, error: teErr } = await supabase
           .from('template_exercises')
           .insert({
             template_id: templateId,
             exercise_id: row.exercise_id,
             position: i,
-            target_sets: row.target_sets,
+            target_sets: targetSets,
             target_reps: row.target_reps,
             target_duration_seconds: row.target_duration_seconds,
             target_weight: row.target_weight,
@@ -202,14 +233,19 @@ export function TemplateEdit() {
           .select('id')
           .single()
         if (teErr) throw teErr
-        const isTime = row.type === 'time'
-        for (let s = 0; s < row.target_sets; s++) {
+        const setList = sets.length ? sets : Array.from({ length: targetSets }, (_, s) => ({
+          set_number: s + 1,
+          target_reps: row.type === 'time' ? null : row.target_reps,
+          target_duration_seconds: row.type === 'time' ? row.target_duration_seconds : null,
+          target_weight: row.type === 'time' ? null : row.target_weight,
+        }))
+        for (const set of setList) {
           await supabase.from('template_exercise_sets').insert({
             template_exercise_id: te.id,
-            set_number: s + 1,
-            target_reps: isTime ? null : row.target_reps,
-            target_duration_seconds: isTime ? row.target_duration_seconds : null,
-            target_weight: isTime ? null : row.target_weight,
+            set_number: set.set_number,
+            target_reps: set.target_reps,
+            target_duration_seconds: set.target_duration_seconds,
+            target_weight: set.target_weight,
           })
         }
       }
@@ -242,19 +278,29 @@ export function TemplateEdit() {
   const handleAddFromPicker = useCallback(
     async (ex: Exercise) => {
       if (isNew) {
+        const exType = (ex.type ?? 'reps') as 'reps' | 'time'
+        const defaultReps = exType === 'time' ? 1 : 10
+        const defaultDuration = exType === 'time' ? 60 : null
+        const defaultSets: DraftSet[] = Array.from({ length: exType === 'time' ? 1 : 3 }, (_, i) => ({
+          set_number: i + 1,
+          target_reps: exType === 'time' ? null : defaultReps,
+          target_duration_seconds: defaultDuration,
+          target_weight: exType === 'time' ? null : null,
+        }))
         setDraftRows((prev) => [
           ...prev,
           {
             exercise_id: ex.id,
             name: ex.name,
             primary_muscle: ex.primary_muscle ?? null,
-            type: (ex.type ?? 'reps') as 'reps' | 'time',
+            type: exType,
             equipment: ex.equipment,
             is_bodyweight: ex.is_bodyweight,
-            target_sets: 3,
-            target_reps: ex.type === 'time' ? 1 : 10,
-            target_duration_seconds: ex.type === 'time' ? 60 : null,
+            target_sets: defaultSets.length,
+            target_reps: defaultReps,
+            target_duration_seconds: defaultDuration,
             target_weight: null,
+            sets: defaultSets,
           },
         ])
         setPickerOpen(false)
@@ -279,6 +325,46 @@ export function TemplateEdit() {
     await removeTemplate(id)
     navigate('/builder')
   }, [id, removeTemplate, navigate])
+
+  const updateDraftSet = useCallback((rowIndex: number, setIndex: number, payload: Partial<DraftSet>) => {
+    setDraftRows((prev) =>
+      prev.map((row, ri) => {
+        if (ri !== rowIndex || !row.sets?.length) return row
+        const sets = row.sets.map((s, si) =>
+          si === setIndex ? { ...s, ...payload } : s
+        )
+        return { ...row, sets, target_sets: sets.length }
+      })
+    )
+  }, [])
+
+  const addDraftSet = useCallback((rowIndex: number) => {
+    setDraftRows((prev) =>
+      prev.map((row, ri) => {
+        if (ri !== rowIndex) return row
+        const sets = row.sets ?? []
+        const last = sets[sets.length - 1]
+        const nextNumber = sets.length + 1
+        const newSet: DraftSet = {
+          set_number: nextNumber,
+          target_reps: row.type === 'time' ? null : (last?.target_reps ?? row.target_reps ?? 10),
+          target_duration_seconds: row.type === 'time' ? (last?.target_duration_seconds ?? row.target_duration_seconds ?? 60) : null,
+          target_weight: row.type === 'time' ? null : (last?.target_weight ?? row.target_weight ?? null),
+        }
+        return { ...row, sets: [...sets, newSet], target_sets: sets.length + 1 }
+      })
+    )
+  }, [])
+
+  const removeDraftSet = useCallback((rowIndex: number, setIndex: number) => {
+    setDraftRows((prev) =>
+      prev.map((row, ri) => {
+        if (ri !== rowIndex || !row.sets?.length) return row
+        const sets = row.sets.filter((_, si) => si !== setIndex).map((s, i) => ({ ...s, set_number: i + 1 }))
+        return { ...row, sets, target_sets: sets.length }
+      })
+    )
+  }, [])
 
   if (!isNew && id && templatesLoading && templates.length === 0) {
     return (
@@ -371,60 +457,150 @@ export function TemplateEdit() {
             />
           ) : (
             <ul className="space-y-2">
-              {draftRows.map((r, index) => (
-                <li key={`${r.exercise_id}-${index}`} className="rounded-lg border border-border bg-card overflow-hidden">
-                  <div className="flex items-center justify-between gap-2 px-3 py-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground truncate">{r.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {[r.primary_muscle, r.equipment].filter(Boolean).join(' · ') || '\u00a0'}
-                      </p>
+              {draftRows.map((r, rowIndex) => {
+                const sets = r.sets ?? []
+                const isBodyweight = r.is_bodyweight
+                const setRowInputClass = cn(
+                  inputClass,
+                  'min-h-[36px] py-1.5 px-2 text-sm min-w-0 border-border/80'
+                )
+                return (
+                  <li key={`${r.exercise_id}-${rowIndex}`} className="rounded-lg border border-border bg-card overflow-hidden">
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground truncate">{r.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {[r.primary_muscle, r.equipment].filter(Boolean).join(' · ') || '\u00a0'}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setDraftRows((prev) => prev.filter((_, i) => i !== rowIndex))}
+                          className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center text-red-500"
+                          aria-label="Remove exercise"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDraftRows((prev) => {
+                            const next = [...prev]
+                            const [removed] = next.splice(rowIndex, 1)
+                            next.splice(rowIndex - 1, 0, removed)
+                            return next
+                          })}
+                          disabled={rowIndex === 0}
+                          className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
+                          aria-label="Move up"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDraftRows((prev) => {
+                            const next = [...prev]
+                            const [removed] = next.splice(rowIndex, 1)
+                            next.splice(rowIndex + 1, 0, removed)
+                            return next
+                          })}
+                          disabled={rowIndex === draftRows.length - 1}
+                          className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
+                          aria-label="Move down"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 gap-0.5">
+                    <div className="px-3 py-1.5 w-full">
+                      {sets.map((set, setIndex) => (
+                        <div
+                          key={`set-${rowIndex}-${setIndex}`}
+                          className="flex items-center gap-2 w-full py-1 min-h-[36px] border-b border-border/50 last:border-b-0"
+                        >
+                          <span className="text-xs text-muted-foreground shrink-0 w-9">Set {setIndex + 1}</span>
+                          {r.type === 'time' ? (
+                            <>
+                              <input
+                                type="number"
+                                min={1}
+                                value={set.target_duration_seconds ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  updateDraftSet(rowIndex, setIndex, {
+                                    target_duration_seconds: v === '' ? null : parseInt(v, 10) || 0,
+                                  })
+                                }}
+                                placeholder="sec"
+                                className={cn(setRowInputClass, 'flex-1 min-w-0')}
+                                inputMode="numeric"
+                                aria-label="Target time (sec)"
+                              />
+                              <span className="text-xs text-muted-foreground shrink-0">sec</span>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <input
+                                type="number"
+                                min={1}
+                                value={set.target_reps ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  updateDraftSet(rowIndex, setIndex, {
+                                    target_reps: v === '' ? null : parseInt(v, 10) || 0,
+                                  })
+                                }}
+                                placeholder="reps"
+                                className={cn(setRowInputClass, 'flex-[25] min-w-0')}
+                                inputMode="numeric"
+                                aria-label="Reps"
+                              />
+                              <span className="text-xs text-muted-foreground shrink-0">reps</span>
+                              {!isBodyweight && (
+                                <>
+                                  <span className="text-xs text-muted-foreground shrink-0">×</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={0.5}
+                                    value={set.target_weight ?? ''}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      updateDraftSet(rowIndex, setIndex, {
+                                        target_weight: v === '' ? null : parseFloat(v) || 0,
+                                      })
+                                    }}
+                                    placeholder="lbs"
+                                    className={cn(setRowInputClass, 'flex-[40] min-w-0')}
+                                    inputMode="decimal"
+                                    aria-label="Weight (lbs)"
+                                  />
+                                </>
+                              )}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeDraftSet(rowIndex, setIndex)}
+                            disabled={sets.length <= 1}
+                            className="p-1.5 rounded hover:bg-muted text-red-500 disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center shrink-0"
+                            aria-label={`Remove set ${setIndex + 1}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
                       <button
                         type="button"
-                        onClick={() => setDraftRows((prev) => prev.filter((_, i) => i !== index))}
-                        className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center text-red-500"
-                        aria-label="Remove exercise"
+                        onClick={() => addDraftSet(rowIndex)}
+                        className="mt-1.5 text-sm text-accent hover:underline py-1"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDraftRows((prev) => {
-                          const next = [...prev]
-                          const [removed] = next.splice(index, 1)
-                          next.splice(index - 1, 0, removed)
-                          return next
-                        })}
-                        disabled={index === 0}
-                        className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
-                        aria-label="Move up"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDraftRows((prev) => {
-                          const next = [...prev]
-                          const [removed] = next.splice(index, 1)
-                          next.splice(index + 1, 0, removed)
-                          return next
-                        })}
-                        disabled={index === draftRows.length - 1}
-                        className="p-2 rounded hover:bg-muted min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-30"
-                        aria-label="Move down"
-                      >
-                        <ChevronDown className="w-4 h-4" />
+                        + Add set
                       </button>
                     </div>
-                  </div>
-                  <div className="px-3 py-1.5 text-sm text-muted-foreground border-t border-border/50">
-                    {r.target_sets} sets{r.type === 'time' ? ` · ${r.target_duration_seconds ?? 0}s` : ` · ${r.target_reps} reps`}
-                    {!r.is_bodyweight && r.target_weight != null && r.target_weight > 0 && ` × ${r.target_weight}`}
-                  </div>
-                </li>
-              ))}
+                  </li>
+                )
+              })}
             </ul>
           )
         ) : exercisesError ? (
