@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Calendar, BarChart3, MoreHorizontal, Dumbbell } from 'lucide-react'
+import { Home, History, BarChart3, MoreHorizontal, Dumbbell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStartWorkout } from '@/contexts/StartWorkoutContext'
 
 const leftTabs = [
   { path: '/', label: 'Home', icon: Home },
-  { path: '/calendar', label: 'Calendar', icon: Calendar },
+  { path: '/history', label: 'History', icon: History },
 ] as const
 
 const rightTabs = [

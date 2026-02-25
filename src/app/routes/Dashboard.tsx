@@ -66,7 +66,10 @@ export function Dashboard() {
         scheduled: s,
         session: recentSessions.find((r) => r.scheduled_workout_id === s.id)!,
       }))
-    const completedToday = recentSessions.filter((s) => s.completed_at.slice(0, 10) === todayStr)
+    // Use local date so "completed today" matches user's calendar day (avoids UTC vs local mismatch)
+    const completedToday = recentSessions.filter(
+      (s) => toLocalDateStr(new Date(s.completed_at)) === todayStr
+    )
     return {
       completedTodayList: completedList,
       notCompletedTodayList: notCompleted,
@@ -76,11 +79,12 @@ export function Dashboard() {
   }, [scheduled, todayStr, recentSessions])
 
   const dashboardState: DashboardState = useMemo(() => {
-    if (templates.length === 0) return 'onboarding'
+    // Only show onboarding (logo + build first workout) when user has no templates and no history
+    if (templates.length === 0 && recentSessions.length === 0) return 'onboarding'
     if (sessionsCompletedToday.length > 0) return 'completed_today'
     if (notCompletedTodayList.length > 0) return 'scheduled_today'
     return 'nothing_scheduled'
-  }, [templates.length, sessionsCompletedToday.length, notCompletedTodayList.length])
+  }, [templates.length, recentSessions.length, sessionsCompletedToday.length, notCompletedTodayList.length])
 
   const { currentStreak, workoutsThisWeek, loading: analyticsLoading } = useProgressAnalytics()
 

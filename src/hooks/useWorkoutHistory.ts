@@ -74,7 +74,13 @@ export function useWorkoutHistory() {
     fetch()
   }, [fetch])
 
-  return { sessions, loading, error, refetch: fetch }
+  const deleteSession = useCallback(async (id: string) => {
+    const { error: e } = await supabase.from('workout_sessions').delete().eq('id', id)
+    if (e) throw e
+    setSessions((prev) => prev.filter((s) => s.id !== id))
+  }, [])
+
+  return { sessions, loading, error, refetch: fetch, deleteSession }
 }
 
 export interface SessionSetWithExercise {
