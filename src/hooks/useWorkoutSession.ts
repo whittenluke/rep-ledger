@@ -75,7 +75,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
     if (!scheduled?.template_id) throw new Error('Scheduled workout or template not found')
 
     const templateId = scheduled.template_id as string
-    setTemplateName((scheduled.workout_templates as { name: string } | null)?.name ?? 'Workout')
+    setTemplateName((scheduled.workout_templates as unknown as { name: string } | null)?.name ?? 'Workout')
 
     let sid = storedSessionId && storedScheduledId === scheduledWorkoutId ? storedSessionId : null
     if (!sid) {
@@ -89,8 +89,8 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         .select('id, started_at')
         .single()
       if (insertErr) throw insertErr
-      sid = newSession.id
-      setSession(sid, (newSession.started_at as string) ?? new Date().toISOString(), scheduledWorkoutId)
+      sid = newSession!.id
+      setSession(sid, (newSession!.started_at as string) ?? new Date().toISOString(), scheduledWorkoutId!)
     }
 
     setSessionIdState(sid)
@@ -297,7 +297,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         weight?: number | null
       }
     ) => {
-      const { data, error: e } = await supabase
+      const { error: e } = await supabase
         .from('session_sets')
         .update({ ...payload, completed: true })
         .eq('id', setId)
@@ -331,6 +331,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
       set_number: inserted.set_number,
       target_reps: inserted.target_reps,
       target_duration_seconds: currentExercise.type === 'time' ? currentExercise.target_duration_seconds : null,
+      target_weight: currentExercise.type === 'time' ? null : (currentExercise.target_weight ?? null),
       actual_reps: null,
       actual_duration_seconds: null,
       weight: null,

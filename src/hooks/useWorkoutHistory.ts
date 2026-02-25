@@ -30,7 +30,7 @@ export function useWorkoutHistory() {
       setLoading(false)
       return
     }
-    const list = (sessionsData ?? []) as Array<{
+    const list = (sessionsData ?? []) as unknown as Array<{
       id: string
       started_at: string
       completed_at: string
@@ -142,11 +142,11 @@ export function useSessionDetail(sessionId: string | null) {
     const end = new Date((sessionData.completed_at as string)).getTime()
     setDetail({
       id: sessionData.id,
-      template_name: (sessionData.workout_templates as { name: string } | null)?.name ?? 'Workout',
+      template_name: (sessionData.workout_templates as unknown as { name: string } | null)?.name ?? 'Workout',
       started_at: sessionData.started_at as string,
       completed_at: sessionData.completed_at as string,
       durationSeconds: Math.round((end - start) / 1000),
-      sets: (setsData ?? []) as SessionSetWithExercise[],
+      sets: (setsData ?? []) as unknown as SessionSetWithExercise[],
     })
     setLoading(false)
   }, [sessionId])

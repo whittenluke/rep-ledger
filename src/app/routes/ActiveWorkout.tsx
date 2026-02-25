@@ -6,7 +6,6 @@ import { SetRow } from '@/components/workout/SetRow'
 import { RestTimer } from '@/components/workout/RestTimer'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { ErrorState } from '@/components/ui/ErrorState'
 import { cn } from '@/lib/utils'
 import { Play } from 'lucide-react'
 

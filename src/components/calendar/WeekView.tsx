@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { DayCell } from './DayCell'
-import { cn } from '@/lib/utils'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -23,7 +22,7 @@ export function WeekView({
   completedDates,
   onDayClick,
 }: WeekViewProps) {
-  const { cells, startPad } = useMemo(() => {
+  const { cells } = useMemo(() => {
     const first = new Date(year, month - 1, 1)
     const last = new Date(year, month, 0)
     const firstDayOfWeek = first.getDay()
@@ -60,7 +59,6 @@ export function WeekView({
       <div className="grid grid-cols-7 border border-border rounded-lg overflow-hidden">
         {cells.map((date, i) => {
           const dateStr = date ? toDateStr(date) : ''
-          const isCurrentMonth = !!date && date.getMonth() === month - 1
           return (
             <DayCell
               key={i}

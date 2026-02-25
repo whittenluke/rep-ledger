@@ -5,7 +5,6 @@ import {
   type Exercise,
   type ExerciseInsert,
   type ExerciseType,
-  type MovementPattern,
   MOVEMENT_PATTERNS,
   EQUIPMENT_OPTIONS,
 } from '@/hooks/useExercises'
@@ -40,7 +39,7 @@ function formToPayload(form: FormState): ExerciseInsert {
   return {
     name: form.name.trim(),
     primary_muscle: form.primary_muscle.trim(),
-    secondary_muscles: form.secondary_muscles,
+    secondary_muscles: form.secondary_muscles ?? [],
     movement_pattern: form.movement_pattern,
     equipment: form.equipment,
     is_bodyweight: isBodyweight,
@@ -135,12 +134,15 @@ export function Exercises() {
   }
 
   function toggleSecondaryMuscle(muscle: string) {
-    setForm((f) => ({
-      ...f,
-      secondary_muscles: f.secondary_muscles.includes(muscle)
-        ? f.secondary_muscles.filter((m) => m !== muscle)
-        : [...f.secondary_muscles, muscle],
-    }))
+    setForm((f) => {
+      const list = f.secondary_muscles ?? []
+      return {
+        ...f,
+        secondary_muscles: list.includes(muscle)
+          ? list.filter((m) => m !== muscle)
+          : [...list, muscle],
+      }
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -346,7 +348,7 @@ export function Exercises() {
                   aria-haspopup="listbox"
                 >
                   <span className="text-muted-foreground">
-                    {form.secondary_muscles.length === 0 ? 'Add secondary muscles' : 'Add or remove'}
+                    {(form.secondary_muscles ?? []).length === 0 ? 'Add secondary muscles' : 'Add or remove'}
                   </span>
                   <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted-foreground', openDropdown === 'secondary' && 'rotate-180')} />
                 </button>
@@ -356,20 +358,20 @@ export function Exercises() {
                       <li
                         key={m}
                         role="option"
-                        aria-selected={form.secondary_muscles.includes(m)}
-                        className={cn(selectOptionClass, form.secondary_muscles.includes(m) && 'bg-muted/50')}
+                        aria-selected={(form.secondary_muscles ?? []).includes(m)}
+                        className={cn(selectOptionClass, (form.secondary_muscles ?? []).includes(m) && 'bg-muted/50')}
                         onClick={() => toggleSecondaryMuscle(m)}
                       >
                         {m}
-                        {form.secondary_muscles.includes(m) && <Check className="w-4 h-4 text-accent shrink-0" />}
+                        {(form.secondary_muscles ?? []).includes(m) && <Check className="w-4 h-4 text-accent shrink-0" />}
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
-              {form.secondary_muscles.length > 0 && (
+              {(form.secondary_muscles ?? []).length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {form.secondary_muscles.map((m) => (
+                  {(form.secondary_muscles ?? []).map((m) => (
                     <span
                       key={m}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border text-sm text-foreground"

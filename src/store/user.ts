@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 export interface UserState {
   weightUnit: 'kg' | 'lbs'
@@ -20,7 +20,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'rep-ledger-user-prefs',
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      storage: typeof window !== 'undefined' ? createJSONStorage(() => localStorage) : undefined,
     }
   )
 )

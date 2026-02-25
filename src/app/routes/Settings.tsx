@@ -17,7 +17,7 @@ export function Settings() {
   const defaultRestSeconds = useUserStore((s) => s.defaultRestSeconds)
   const setDefaultRestSeconds = useUserStore((s) => s.setDefaultRestSeconds)
 
-  const isCustomRest = !REST_PRESET_SET.has(defaultRestSeconds)
+  const isCustomRest = !(REST_PRESETS as readonly number[]).includes(defaultRestSeconds)
 
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')

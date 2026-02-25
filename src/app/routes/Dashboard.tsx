@@ -9,7 +9,6 @@ import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates'
 import { useStartWorkout } from '@/contexts/StartWorkoutContext'
 import { LoadingState } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { ErrorState } from '@/components/ui/ErrorState'
 import { cn } from '@/lib/utils'
 import { Calendar, CheckCircle2, ChevronRight, Dumbbell, Plus, Trash2 } from 'lucide-react'
 
@@ -52,7 +51,7 @@ export function Dashboard() {
   const { templates, loading: templatesLoading } = useWorkoutTemplates()
   const { openStartWorkout } = useStartWorkout()
 
-  const { completedTodayList, notCompletedTodayList, lastThree, sessionsCompletedToday } = useMemo(() => {
+  const { notCompletedTodayList, lastThree, sessionsCompletedToday } = useMemo(() => {
     const list = scheduled.filter((s) => s.scheduled_date === todayStr)
     const completedIds = new Set(
       recentSessions
@@ -96,11 +95,6 @@ export function Dashboard() {
 
   function handleBuildFirstWorkout() {
     navigate('/builder/new')
-  }
-
-  function openScheduleModal() {
-    setScheduleDate(todayStr)
-    setScheduleModalOpen(true)
   }
 
   async function handleScheduleWorkout(templateId: string) {

@@ -34,7 +34,7 @@ export function useWorkoutTemplates() {
       setError(e)
       setTemplates([])
     } else {
-      setTemplates((data ?? []) as WorkoutTemplate[])
+      setTemplates((data ?? []) as unknown as WorkoutTemplate[])
     }
     setLoading(false)
   }, [])

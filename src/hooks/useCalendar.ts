@@ -52,7 +52,7 @@ export function useCalendar(year: number, month: number) {
       setCompletedDates(new Set())
       setCompletedSessionIdByScheduledId({})
     } else {
-      setScheduled((schedRes.data ?? []) as ScheduledWorkout[])
+      setScheduled((schedRes.data ?? []) as unknown as ScheduledWorkout[])
     }
 
     if (sessionsRes.error) {
@@ -88,8 +88,8 @@ export function useCalendar(year: number, month: number) {
       .select('id, scheduled_date, template_id, workout_templates(name)')
       .single()
     if (e) throw e
-    setScheduled((prev) => [...prev, data as ScheduledWorkout].sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date)))
-    return data as ScheduledWorkout
+    setScheduled((prev) => [...prev, data as unknown as ScheduledWorkout].sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date)))
+    return data as unknown as ScheduledWorkout
   }, [])
 
   const removeScheduled = useCallback(async (id: string) => {

@@ -18,7 +18,7 @@ export function ConsistencyHeatmap({
   weeks = 12,
   className,
 }: ConsistencyHeatmapProps) {
-  const { grid, startDate } = useMemo(() => {
+  const { grid } = useMemo(() => {
     const end = new Date()
     const start = new Date(end)
     start.setDate(start.getDate() - (weeks * 7 - 1))
@@ -35,7 +35,7 @@ export function ConsistencyHeatmap({
         isWorkout: workoutDays.has(dateStr),
       })
     }
-    return { grid: cells, startDate: start }
+    return { grid: cells }
   }, [workoutDays, weeks])
 
   return (

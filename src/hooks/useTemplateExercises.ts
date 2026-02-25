@@ -66,7 +66,7 @@ export function useTemplateExercises(templateId: string | null) {
       setLoading(false)
       return
     }
-    const teRows = (teData ?? []) as Omit<TemplateExerciseRow, 'sets'>[]
+    const teRows = (teData ?? []) as unknown as Omit<TemplateExerciseRow, 'sets'>[]
     const teIds = teRows.map((r) => r.id)
     let allSets: TemplateExerciseSetRow[] = []
     const { data: setData, error: setQueryError } = await supabase
@@ -147,7 +147,7 @@ export function useTemplateExercises(templateId: string | null) {
         .select('id, template_id, exercise_id, position, target_sets, target_reps, target_duration_seconds, target_weight, notes, exercises(name, primary_muscle, type, image_url, is_bodyweight, equipment)')
         .single()
       if (e) throw e
-      const row = data as TemplateExerciseRow
+      const row = data as unknown as TemplateExerciseRow
       const isTime = payload.target_duration_seconds != null
       const numSets = row.target_sets || 3
       const newSetRows: TemplateExerciseSetRow[] = []
@@ -185,9 +185,9 @@ export function useTemplateExercises(templateId: string | null) {
       .single()
     if (e) throw e
     setRows((prev) =>
-      prev.map((r) => (r.id === id ? (data as TemplateExerciseRow) : r)).sort((a, b) => a.position - b.position)
+      prev.map((r) => (r.id === id ? (data as unknown as TemplateExerciseRow) : r)).sort((a, b) => a.position - b.position)
     )
-    return data as TemplateExerciseRow
+    return data as unknown as TemplateExerciseRow
   }, [])
 
   const remove = useCallback(async (id: string) => {
