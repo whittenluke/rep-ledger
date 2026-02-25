@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useActiveWorkoutStore } from '@/store/activeWorkout'
@@ -48,8 +48,13 @@ export function Dashboard() {
     now.getMonth() + 1
   )
   const { sessions: recentSessions, loading: historyLoading } = useWorkoutHistory()
-  const { templates, loading: templatesLoading } = useWorkoutTemplates()
+  const { templates, loading: templatesLoading, refetch: refetchTemplates } = useWorkoutTemplates()
   const { openStartWorkout } = useStartWorkout()
+
+  // Refetch templates when Dashboard is shown so state is correct after e.g. deleting last template and coming back
+  useEffect(() => {
+    refetchTemplates()
+  }, [refetchTemplates])
 
   const { notCompletedTodayList, lastThree, sessionsCompletedToday } = useMemo(() => {
     const list = scheduled.filter((s) => s.scheduled_date === todayStr)
@@ -78,12 +83,12 @@ export function Dashboard() {
   }, [scheduled, todayStr, recentSessions])
 
   const dashboardState: DashboardState = useMemo(() => {
-    // Only show onboarding (logo + build first workout) when user has no templates and no history
-    if (templates.length === 0 && recentSessions.length === 0) return 'onboarding'
+    // No templates → always show onboarding (logo + build workout), regardless of history
+    if (templates.length === 0) return 'onboarding'
     if (sessionsCompletedToday.length > 0) return 'completed_today'
     if (notCompletedTodayList.length > 0) return 'scheduled_today'
     return 'nothing_scheduled'
-  }, [templates.length, recentSessions.length, sessionsCompletedToday.length, notCompletedTodayList.length])
+  }, [templates.length, sessionsCompletedToday.length, notCompletedTodayList.length])
 
   const { currentStreak, workoutsThisWeek, loading: analyticsLoading } = useProgressAnalytics()
 
