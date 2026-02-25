@@ -30,12 +30,16 @@ export function StartWorkoutSheet({ open, onClose }: StartWorkoutSheetProps) {
   )
   const { sessions: recentSessions, loading: historyLoading } = useWorkoutHistory()
 
-  // Refetch calendar when sheet opens so we see the latest scheduled workouts (e.g. just scheduled on Calendar or Dashboard)
-  useEffect(() => {
-    if (open) refetchCalendar()
-  }, [open, refetchCalendar])
-  const { templates } = useWorkoutTemplates()
+  const { templates, refetch: refetchTemplates } = useWorkoutTemplates()
   const [startingTemplateId, setStartingTemplateId] = useState<string | null>(null)
+
+  // Refetch calendar and templates when sheet opens so we always show current data (e.g. after deleting a template or scheduling on another screen)
+  useEffect(() => {
+    if (open) {
+      refetchCalendar()
+      refetchTemplates()
+    }
+  }, [open, refetchCalendar, refetchTemplates])
 
   const notCompletedTodayList = useMemo(() => {
     const list = scheduled.filter((s) => s.scheduled_date === todayStr)
