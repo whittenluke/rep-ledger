@@ -25,6 +25,7 @@ interface SetRowProps {
   onWeightChange: (value: number | null) => void
   onComplete: (override?: SetCompleteOverride) => void
   onRemove?: () => void
+  onRestart?: () => void
   canRemove?: boolean
   /** This is the set you're on right now (first incomplete set). Stays until marked done. */
   isCurrentSet?: boolean
