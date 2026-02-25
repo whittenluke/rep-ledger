@@ -75,7 +75,7 @@ export function Builder() {
   }
 
   return (
-    <div className="p-4 pb-20">
+    <div className="flex flex-col min-h-[calc(100dvh-80px)] p-4 pb-20">
       <div className="flex items-center justify-between gap-4">
         <PageHeader title="Workout Builder" />
         <button
@@ -108,10 +108,12 @@ export function Builder() {
       {loading ? (
         <LoadingState message="Loading templates…" />
       ) : templates.length === 0 ? (
-        <EmptyState
-          message="No templates yet"
-          description="Create a workout template to schedule and run sessions."
-        />
+        <div className="flex-1 flex flex-col justify-center">
+          <EmptyState
+            message="No templates yet"
+            description="Create a workout template to schedule and run sessions."
+          />
+        </div>
       ) : (
         <ul className="mt-4 space-y-2">
           {templates.map((t) => {
