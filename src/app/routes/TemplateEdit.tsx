@@ -460,6 +460,7 @@ export function TemplateEdit() {
               {draftRows.map((r, rowIndex) => {
                 const sets = r.sets ?? []
                 const isBodyweight = r.is_bodyweight
+                const draftEx = [...exercises, ...systemExercises].find((e) => e.id === r.exercise_id)
                 const setRowInputClass = cn(
                   inputClass,
                   'min-h-[36px] py-1.5 px-2 text-sm min-w-0 border-border/80'
@@ -467,6 +468,17 @@ export function TemplateEdit() {
                 return (
                   <li key={`${r.exercise_id}-${rowIndex}`} className="rounded-lg border border-border bg-card overflow-hidden">
                     <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
+                      {draftEx?.image_url ? (
+                        <img
+                          src={draftEx.image_url}
+                          alt=""
+                          className="w-16 h-16 rounded-lg object-cover shrink-0 bg-muted"
+                        />
+                      ) : (
+                        <span className="w-16 h-16 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                          <Dumbbell className="w-8 h-8 text-muted-foreground" aria-hidden />
+                        </span>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-foreground truncate">{r.name}</p>
                         <p className="text-xs text-muted-foreground truncate">
@@ -628,8 +640,19 @@ export function TemplateEdit() {
           <ul className="space-y-2">
             {rows.map((r, index) => (
               <li key={r.id} className="rounded-lg border border-border bg-card overflow-hidden">
-                {/* Exercise header: name, muscle, reorder/delete — one row */}
+                {/* Exercise header: thumbnail, name, muscle, reorder/delete — one row */}
                 <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
+                  {r.exercises?.image_url ? (
+                    <img
+                      src={r.exercises.image_url}
+                      alt=""
+                      className="w-16 h-16 rounded-lg object-cover shrink-0 bg-muted"
+                    />
+                  ) : (
+                    <span className="w-16 h-16 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                      <Dumbbell className="w-8 h-8 text-muted-foreground" aria-hidden />
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground truncate">{r.exercises?.name ?? 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground truncate">
@@ -932,11 +955,11 @@ export function TemplateEdit() {
                                       <img
                                         src={ex.image_url}
                                         alt=""
-                                        className="w-12 h-12 rounded-lg object-cover shrink-0 bg-muted"
+                                        className="w-20 h-20 rounded-lg object-cover shrink-0 bg-muted"
                                       />
                                     ) : (
-                                      <span className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center">
-                                        <Dumbbell className="w-5 h-5 text-muted-foreground" aria-hidden />
+                                      <span className="w-20 h-20 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                                        <Dumbbell className="w-8 h-8 text-muted-foreground" aria-hidden />
                                       </span>
                                     )}
                                     <div className="min-w-0 flex-1">
