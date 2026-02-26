@@ -1,4 +1,5 @@
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { InstallPrompt } from '@/components/layout/InstallPrompt'
@@ -54,5 +55,10 @@ const router = createBrowserRouter([
 ])
 
 export default function App() {
-  return <RouterProvider router={router} />
+  return (
+    <>
+      <RouterProvider router={router} />
+      <Analytics />
+    </>
+  )
 }
