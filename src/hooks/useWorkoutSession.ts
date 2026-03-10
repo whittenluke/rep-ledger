@@ -164,7 +164,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         .from('session_sets')
         .select('id, set_number, target_reps, actual_reps, weight, actual_duration_seconds, completed')
         .eq('session_id', sid)
-        .eq('exercise_id', ex.exercise_id)
+        .eq('template_exercise_id', ex.template_exercise_id)
         .order('set_number')
       const existingList = (existing ?? []) as Array<{
         id: string
@@ -320,6 +320,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
       .from('session_sets')
       .insert({
         session_id: sessionId,
+        template_exercise_id: currentExercise.template_exercise_id,
         exercise_id: currentExercise.exercise_id,
         set_number: nextSetNumber,
         target_reps: currentExercise.type === 'time' ? null : currentExercise.target_reps,

@@ -112,13 +112,18 @@ export function SessionDetail() {
     )
   }
 
-  const setsByExercise = detail.sets.reduce<Record<string, typeof detail.sets>>((acc, set) => {
-    const key = set.exercise_id ?? 'deleted'
+  // Group by template_exercise_id when present (same exercise twice = two blocks), else by exercise_id for legacy sets
+  const setsByBlock = detail.sets.reduce<Record<string, typeof detail.sets>>((acc, set) => {
+    const key = set.template_exercise_id ?? set.exercise_id ?? 'deleted'
     if (!acc[key]) acc[key] = []
     acc[key].push(set)
     return acc
   }, {})
-  const exerciseIds = [...new Set(detail.sets.map((s) => s.exercise_id ?? 'deleted'))]
+  const blockKeys = Object.keys(setsByBlock).sort((a, b) => {
+    const minSetA = Math.min(...setsByBlock[a].map((s) => s.set_number))
+    const minSetB = Math.min(...setsByBlock[b].map((s) => s.set_number))
+    return minSetA - minSetB
+  })
 
   return (
     <div className="p-4 pb-20">
@@ -165,14 +170,14 @@ export function SessionDetail() {
       </p>
 
       <div className="mt-6 space-y-6">
-        {exerciseIds.map((exerciseId) => {
-          const sets = setsByExercise[exerciseId] ?? []
+        {blockKeys.map((blockKey) => {
+          const sets = setsByBlock[blockKey] ?? []
           const first = sets[0]
           const name = first?.exercises?.name ?? 'Unknown'
           const muscleGroup = first?.exercises?.primary_muscle
           const isTime = first?.exercises?.type === 'time'
           return (
-            <div key={exerciseId ?? 'deleted'} className="rounded-lg border border-border bg-card overflow-hidden">
+            <div key={blockKey} className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="p-3 border-b border-border">
                 <p className="font-medium text-foreground">{name}</p>
                 {muscleGroup && (

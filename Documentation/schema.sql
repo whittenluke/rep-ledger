@@ -86,9 +86,13 @@ create table workout_sessions (
   notes text
 );
 
+-- template_exercise_id: links each set to a specific template-exercise slot so the same
+-- exercise can appear twice in one workout without sets colliding. Nullable for existing rows.
+-- For existing DBs: ALTER TABLE session_sets ADD COLUMN template_exercise_id uuid REFERENCES template_exercises ON DELETE SET NULL;
 create table session_sets (
   id uuid primary key default gen_random_uuid(),
   session_id uuid references workout_sessions on delete cascade,
+  template_exercise_id uuid references template_exercises on delete set null,
   exercise_id uuid references exercises,
   set_number integer not null,
   target_reps integer,

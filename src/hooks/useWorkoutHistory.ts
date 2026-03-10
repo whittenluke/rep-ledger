@@ -85,6 +85,7 @@ export function useWorkoutHistory() {
 
 export interface SessionSetWithExercise {
   id: string
+  template_exercise_id: string | null
   exercise_id: string | null
   set_number: number
   actual_reps: number | null
@@ -128,9 +129,9 @@ export function useSessionDetail(sessionId: string | null) {
     }
     const { data: setsData, error: setsErr } = await supabase
       .from('session_sets')
-      .select('id, exercise_id, set_number, actual_reps, actual_duration_seconds, weight, completed, exercises(name, primary_muscle, type)')
+      .select('id, template_exercise_id, exercise_id, set_number, actual_reps, actual_duration_seconds, weight, completed, exercises(name, primary_muscle, type)')
       .eq('session_id', sessionId)
-      .order('exercise_id')
+      .order('template_exercise_id')
       .order('set_number')
     if (setsErr) {
       setError(setsErr)
