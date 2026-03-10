@@ -53,7 +53,7 @@ ALTER TABLE session_sets ADD COLUMN IF NOT EXISTS template_exercise_id uuid REFE
 
 ---
 
-## 4. Export missing template_exercise_sets
+## 4. Export missing template_exercise_sets (fixed)
 
 **Bug:** `exportUserData()` in `lib/exportData.ts` exports exercises, workout_templates, template_exercises, scheduled_workouts, workout_sessions, session_sets — but not `template_exercise_sets`. Per-set targets are part of the user’s programming data, so the export is not a faithful backup.
 
@@ -67,6 +67,8 @@ ALTER TABLE session_sets ADD COLUMN IF NOT EXISTS template_exercise_id uuid REFE
 **Decisions / tradeoffs:**
 
 - Straightforward addition; no schema change. Export format version can stay 1 or bump to 2 if you want to signal “includes template_exercise_sets” to future import logic.
+
+**Done:** After loading `template_exercises`, we collect their IDs, fetch `template_exercise_sets` with `.in('template_exercise_id', templateExerciseIds)` (ordered by template_exercise_id, set_number), and add `template_exercise_sets` to `ExportedData` and the returned payload. Export version remains 1.
 
 ---
 

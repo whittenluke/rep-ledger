@@ -6,6 +6,7 @@ export interface ExportedData {
   exercises: unknown[]
   workout_templates: unknown[]
   template_exercises: unknown[]
+  template_exercise_sets: unknown[]
   scheduled_workouts: unknown[]
   workout_sessions: unknown[]
   session_sets: unknown[]
@@ -45,12 +46,26 @@ export async function exportUserData(): Promise<ExportedData> {
   if (templateExercisesRes.error) throw templateExercisesRes.error
   if (sessionSetsRes.error) throw sessionSetsRes.error
 
+  const templateExerciseIds = (templateExercisesRes.data ?? []).map((te: { id: string }) => te.id)
+  const templateExerciseSetsRes =
+    templateExerciseIds.length > 0
+      ? await supabase
+          .from('template_exercise_sets')
+          .select('*')
+          .in('template_exercise_id', templateExerciseIds)
+          .order('template_exercise_id')
+          .order('set_number')
+      : { data: [] as unknown[], error: null }
+
+  if (templateExerciseSetsRes.error) throw templateExerciseSetsRes.error
+
   return {
     exportedAt: new Date().toISOString(),
     version: 1,
     exercises: exercisesRes.data ?? [],
     workout_templates: templatesRes.data ?? [],
     template_exercises: templateExercisesRes.data ?? [],
+    template_exercise_sets: templateExerciseSetsRes.data ?? [],
     scheduled_workouts: scheduledRes.data ?? [],
     workout_sessions: sessionsRes.data ?? [],
     session_sets: sessionSetsRes.data ?? [],
