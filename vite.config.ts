@@ -18,10 +18,10 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           { src: '/favicon.ico', type: 'image/x-icon', sizes: '16x16 32x32', purpose: 'any' },
-          { src: '/icon-192.png', type: 'image/png', sizes: '192x192', purpose: 'any' },
-          { src: '/icon-512.png', type: 'image/png', sizes: '512x512', purpose: 'any' },
-          { src: '/icon-192-maskable.png', type: 'image/png', sizes: '192x192', purpose: 'maskable' },
-          { src: '/icon-512-maskable.png', type: 'image/png', sizes: '512x512', purpose: 'maskable' },
+          { src: '/android-chrome-192x192.png', type: 'image/png', sizes: '192x192', purpose: 'any' },
+          { src: '/android-chrome-512x512.png', type: 'image/png', sizes: '512x512', purpose: 'any' },
+          { src: '/android-chrome-192x192.png', type: 'image/png', sizes: '192x192', purpose: 'maskable' },
+          { src: '/android-chrome-512x512.png', type: 'image/png', sizes: '512x512', purpose: 'maskable' },
         ],
       },
       workbox: {
