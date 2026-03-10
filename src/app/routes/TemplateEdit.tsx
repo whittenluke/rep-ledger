@@ -208,12 +208,15 @@ export function TemplateEdit() {
   }, [navigate])
 
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const handleDoneNew = useCallback(async () => {
     setCreating(true)
+    setCreateError(null)
+    let templateId: string | null = null
     try {
       const trimmedName = name.trim() || 'Untitled workout'
       const t = await createTemplate({ name: trimmedName, notes: notes.trim() || null })
-      const templateId = t.id
+      templateId = t.id
       for (let i = 0; i < draftRows.length; i++) {
         const row = draftRows[i]
         const sets = row.sets ?? []
@@ -240,18 +243,24 @@ export function TemplateEdit() {
           target_weight: row.type === 'time' ? null : row.target_weight,
         }))
         for (const set of setList) {
-          await supabase.from('template_exercise_sets').insert({
+          const { error: setErr } = await supabase.from('template_exercise_sets').insert({
             template_exercise_id: te.id,
             set_number: set.set_number,
             target_reps: set.target_reps,
             target_duration_seconds: set.target_duration_seconds,
             target_weight: set.target_weight,
           })
+          if (setErr) throw setErr
         }
       }
       setShowSaved(true)
       setTimeout(() => navigate('/builder', { state: { fromCreate: true } }), 800)
     } catch (err) {
+      if (templateId) {
+        await supabase.from('workout_templates').delete().eq('id', templateId)
+      }
+      const message = err instanceof Error ? err.message : String(err)
+      setCreateError(message)
       console.error(err)
     } finally {
       setCreating(false)
@@ -408,6 +417,12 @@ export function TemplateEdit() {
           {showSaved ? 'Saved ✓' : isNew && creating ? 'Creating…' : 'Done'}
         </button>
       </div>
+
+      {isNew && createError && (
+        <p className="mt-3 text-sm text-red-500" role="alert">
+          {createError}
+        </p>
+      )}
 
       <div className="mt-4 space-y-4">
         <div>

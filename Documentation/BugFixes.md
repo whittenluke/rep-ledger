@@ -35,7 +35,7 @@ ALTER TABLE session_sets ADD COLUMN IF NOT EXISTS template_exercise_id uuid REFE
 
 ---
 
-## 3. Template create flow not transactional; set insert errors ignored
+## 3. Template create flow not transactional; set insert errors ignored (fixed)
 
 **Bug:** In `TemplateEdit.tsx`, `handleDoneNew` creates the template, then inserts each `template_exercise`, then for each exercise inserts `template_exercise_sets`. The set inserts are awaited but their errors are never checked. If a set insert fails, the template and template_exercises are already committed; the user can end up with a half-created template and no clear error.
 
@@ -48,6 +48,8 @@ ALTER TABLE session_sets ADD COLUMN IF NOT EXISTS template_exercise_id uuid REFE
 **Decisions / tradeoffs:**
 
 - **Rollback vs RPC:** Application-level rollback (delete template on failure) is simpler and doesn’t require schema/migration. RPC gives atomicity and avoids a short window where a partial template exists; use if you want the strongest guarantee.
+
+**Done:** Each `template_exercise_sets` insert now checks `if (setErr) throw setErr`; on catch, the created template is deleted (rollback) and `createError` state shows the message below the header buttons.
 
 ---
 
