@@ -162,7 +162,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
     async (sid: string, ex: SessionExercise): Promise<SessionSetRow[]> => {
       const { data: existing } = await supabase
         .from('session_sets')
-        .select('id, set_number, target_reps, actual_reps, weight, actual_duration_seconds, completed')
+        .select('id, set_number, target_reps, target_duration_seconds, target_weight, actual_reps, weight, actual_duration_seconds, completed')
         .eq('session_id', sid)
         .eq('template_exercise_id', ex.template_exercise_id)
         .order('set_number')
@@ -170,6 +170,8 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         id: string
         set_number: number
         target_reps: number | null
+        target_duration_seconds: number | null
+        target_weight: number | null
         actual_reps: number | null
         weight: number | null
         actual_duration_seconds: number | null
@@ -183,22 +185,29 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
           const setNumber = setIndex + 1
           const t = ex.set_targets?.[setIndex]
           const targetReps = ex.type === 'time' ? null : (t?.target_reps ?? ex.target_reps)
+          const targetDuration = ex.type === 'time' ? (t?.target_duration_seconds ?? ex.target_duration_seconds) : null
+          const targetWeight = ex.type === 'time' ? null : (t?.target_weight ?? ex.target_weight ?? null)
           const { data: inserted, error: insErr } = await supabase
             .from('session_sets')
             .insert({
               session_id: sid,
+              template_exercise_id: ex.template_exercise_id,
               exercise_id: ex.exercise_id,
               set_number: setNumber,
               target_reps: targetReps,
+              target_duration_seconds: targetDuration,
+              target_weight: targetWeight,
               completed: false,
             })
-            .select('id, set_number, target_reps, actual_reps, actual_duration_seconds, weight, completed')
+            .select('id, set_number, target_reps, target_duration_seconds, target_weight, actual_reps, actual_duration_seconds, weight, completed')
             .single()
           if (insErr) throw insErr
           existingList.push({
             id: inserted.id,
             set_number: inserted.set_number,
             target_reps: inserted.target_reps,
+            target_duration_seconds: inserted.target_duration_seconds ?? null,
+            target_weight: inserted.target_weight ?? null,
             actual_reps: null,
             weight: null,
             actual_duration_seconds: null,
@@ -212,8 +221,8 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
           id: s.id,
           set_number: s.set_number,
           target_reps: s.target_reps ?? t?.target_reps ?? (ex.type === 'time' ? null : ex.target_reps),
-          target_duration_seconds: t?.target_duration_seconds ?? (ex.type === 'time' ? ex.target_duration_seconds : null),
-          target_weight: t?.target_weight ?? ex.target_weight ?? null,
+          target_duration_seconds: s.target_duration_seconds ?? t?.target_duration_seconds ?? (ex.type === 'time' ? ex.target_duration_seconds : null),
+          target_weight: s.target_weight ?? t?.target_weight ?? ex.target_weight ?? null,
           actual_reps: s.actual_reps,
           actual_duration_seconds: s.actual_duration_seconds,
           weight: s.weight,
@@ -316,6 +325,8 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
   const addSet = useCallback(async () => {
     if (!sessionId || !currentExercise) return
     const nextSetNumber = sets.length + 1
+    const targetDuration = currentExercise.type === 'time' ? currentExercise.target_duration_seconds : null
+    const targetWeight = currentExercise.type === 'time' ? null : (currentExercise.target_weight ?? null)
     const { data: inserted, error: insErr } = await supabase
       .from('session_sets')
       .insert({
@@ -324,17 +335,19 @@ export function useWorkoutSession(scheduledWorkoutId: string | null) {
         exercise_id: currentExercise.exercise_id,
         set_number: nextSetNumber,
         target_reps: currentExercise.type === 'time' ? null : currentExercise.target_reps,
+        target_duration_seconds: targetDuration,
+        target_weight: targetWeight,
         completed: false,
       })
-      .select('id, set_number, target_reps, actual_reps, actual_duration_seconds, weight, completed')
+      .select('id, set_number, target_reps, target_duration_seconds, target_weight, actual_reps, actual_duration_seconds, weight, completed')
       .single()
     if (insErr) throw insErr
     const newRow: SessionSetRow = {
       id: inserted.id,
       set_number: inserted.set_number,
       target_reps: inserted.target_reps,
-      target_duration_seconds: currentExercise.type === 'time' ? currentExercise.target_duration_seconds : null,
-      target_weight: currentExercise.type === 'time' ? null : (currentExercise.target_weight ?? null),
+      target_duration_seconds: inserted.target_duration_seconds ?? (currentExercise.type === 'time' ? currentExercise.target_duration_seconds : null),
+      target_weight: inserted.target_weight ?? (currentExercise.type === 'time' ? null : (currentExercise.target_weight ?? null)),
       actual_reps: null,
       actual_duration_seconds: null,
       weight: null,

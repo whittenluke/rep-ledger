@@ -72,7 +72,7 @@ ALTER TABLE session_sets ADD COLUMN IF NOT EXISTS template_exercise_id uuid REFE
 
 ---
 
-## 5. Session-set persistence incomplete (target_duration_seconds, target_weight)
+## 5. Session-set persistence incomplete (target_duration_seconds, target_weight) (fixed)
 
 **Bug:** In `useWorkoutSession.ts`, when creating session_sets, only `target_reps` (and session_id, exercise_id, set_number, completed) are persisted. `target_duration_seconds` and `target_weight` are reconstructed in memory from template/template_exercise_sets. If the template changes later, or for immutable session snapshots, the “what the user saw when they performed the workout” is not fully stored.
 
@@ -86,6 +86,8 @@ ALTER TABLE session_sets ADD COLUMN IF NOT EXISTS template_exercise_id uuid REFE
 
 - **Backfill:** Existing session_sets rows will have nulls; history view can fall back to “reconstruct from template at view time” for old data, or leave as null. New sessions get full fidelity.
 - **Schema:** If columns already exist, this is code-only. If not, add columns (nullable) and document in `schema.sql`.
+
+**Done:** Schema now includes `target_duration_seconds` and `target_weight` on `session_sets`. In `ensureSetsForExercise`, new sets are inserted with those fields (from per-set targets or exercise defaults), and the select returns them; withTargets uses stored values first, then template. `addSet` persists target_duration_seconds and target_weight. For existing DBs run: `ALTER TABLE session_sets ADD COLUMN target_duration_seconds integer; ALTER TABLE session_sets ADD COLUMN target_weight numeric;`
 
 ---
 
