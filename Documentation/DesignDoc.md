@@ -35,7 +35,7 @@ The app should feel like a premium fitness tool — fast, focused, and tactile. 
 
 The canonical schema (tables + RLS) lives in **`Documentation/schema.sql`**.
 
-**Workflow:** We don’t use the Supabase CLI or migration files. When we need a schema change, we run the SQL in the Supabase SQL editor (or draft it in chat), apply it in the project, then record it in `schema.sql` so the repo stays in sync.
+**Workflow:** We don’t use the Supabase CLI or migration files. When we need a schema change, we run the SQL in the Supabase SQL editor (or draft it in chat), apply it in the project, then record it in `schema.sql` so the repo stays in sync. For existing DBs, ALTER snippets for new columns are in `schema.sql` comments and in **`Documentation/BugFixes.md`**.
 
 ---
 
@@ -146,7 +146,7 @@ Top-level analytics:
 - Weight unit preference (kg / lbs)
 - Default rest timer duration
 - Account (Supabase auth — email/password or magic link)
-- Data export (JSON)
+- Data export (JSON): exercises, templates, template_exercises, **template_exercise_sets**, scheduled_workouts, sessions, session_sets for a full backup
 
 ---
 
@@ -166,6 +166,7 @@ Mobile bottom tab bar with 5 tabs:
 
 - No offline layer needed for now — all data reads and writes go directly to Supabase.
 - Persist the active workout Zustand store to **localStorage** using zustand/middleware (persist). This protects against the screen locking or the browser tab refreshing mid-session. It's ~3 lines of config and prevents the most painful possible data loss scenario. On app load, if a persisted in-progress session is found, prompt the user to resume or discard it.
+- **Session sets** are stored per **template_exercise_id** (so the same exercise can appear twice in one workout without sets colliding). Each set persists `target_reps`, `target_duration_seconds`, and `target_weight` so completed sessions retain what the user saw for historical accuracy.
 - Keep all Supabase calls behind hooks (`useWorkoutSession`, `useExerciseHistory`, etc.) rather than calling the client directly in components. This keeps the door open to adding an offline layer later without touching any UI code.
 
 ---
@@ -180,7 +181,7 @@ vite-plugin-pwa config should include:
 - **background_color:** `#0e0e0e`
 - **display:** standalone
 - **orientation:** portrait
-- Icons at 192×192 and 512×512
+- Icons at 192×192 and 512×512; use **`android-chrome-192x192.png`** and **`android-chrome-512x512.png`** in `public/` (manifest in `vite.config.ts`)
 - **Cache strategy:** StaleWhileRevalidate for API calls, CacheFirst for static assets
 - Prompt user to install on first visit (custom install banner, not browser default)
 
